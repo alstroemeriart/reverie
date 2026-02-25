@@ -1,0 +1,30 @@
+{"question": "Which planet is known as the Red Planet?", "options": ["Earth", "Mars", "Jupiter", "Venus"], "answer": "Mars"}
+{"question": "What is the output of 2 + 3 * 4 in Python?", "options": ["20", "14", "24", "None of the above"], "answer": "14"}
+{"question": "Who wrote 'Romeo and Juliet'?", "options": ["Charles Dickens", "William Shakespeare", "Mark Twain", "Jane Austen"], "answer": "William Shakespeare"}
+{"question": "Which element has the chemical symbol O?", "options": ["Oxygen", "Gold", "Iron", "Silver"], "answer": "Oxygen"}
+{"question": "Largest ocean on Earth?", "options": ["Atlantic", "Indian", "Arctic", "Pacific"], "answer": "Pacific"}
+{"question": "Which gas do plants absorb?", "options": ["Oxygen", "Carbon Dioxide", "Nitrogen", "Hydrogen"], "answer": "Carbon Dioxide"}
+{"question": "What is H2O?", "options": ["Salt", "Water", "Oxygen", "Hydrogen"], "answer": "Water"}
+{"question": "Who developed the theory of relativity?", "options": ["Newton", "Einstein", "Galileo", "Tesla"], "answer": "Einstein"}
+{"question": "Capital of Japan?", "options": ["Tokyo", "Kyoto", "Osaka", "Nagoya"], "answer": "Tokyo"}
+{"question": "What is the boiling point of water?", "options": ["90°C", "100°C", "110°C", "120°C"], "answer": "100°C"}
+{"question": "Which organ pumps blood?", "options": ["Liver", "Heart", "Kidney", "Lung"], "answer": "Heart"}
+{"question": "Which planet is largest in the Solar System?", "options": ["Earth", "Saturn", "Jupiter", "Neptune"], "answer": "Jupiter"}
+{"question": "Which language is used for web development?", "options": ["Python", "JavaScript", "C++", "Java"], "answer": "JavaScript"}
+{"question": "Which is the smallest prime number?", "options": ["0", "1", "2", "3"], "answer": "2"}
+{"question": "Which continent is Australia in?", "options": ["Asia", "Oceania", "Europe", "Africa"], "answer": "Oceania"}
+{"question": "What is the square root of 81?", "options": ["7", "8", "9", "10"], "answer": "9"}
+{"question": "Which vitamin is produced from sunlight?", "options": ["A", "B", "C", "D"], "answer": "D"}
+{"question": "Which organ filters blood?", "options": ["Heart", "Kidney", "Liver", "Lung"], "answer": "Kidney"}
+{"question": "Speed of light?", "options": ["300,000 km/s", "150,000 km/s", "450,000 km/s", "600,000 km/s"], "answer": "300,000 km/s"}
+{"question": "Which is NOT a mammal?", "options": ["Whale", "Bat", "Shark", "Dolphin"], "answer": "Shark"}
+{"question": "Capital of France?", "options": ["Paris", "Berlin", "Rome", "Madrid"], "answer": "Paris"}
+{"question": "What does CPU stand for?", "options": ["Central Processing Unit", "Computer Primary Unit", "Central Program Unit", "Control Processing Unit"], "answer": "Central Processing Unit"}
+{"question": "Which is a chemical element?", "options": ["Water", "Gold", "Air", "Salt"], "answer": "Gold"}
+{"question": "Which planet has rings?", "options": ["Mars", "Earth", "Saturn", "Venus"], "answer": "Saturn"}
+{"question": "What is the freezing point of water?", "options": ["0°C", "32°C", "-1°C", "100°C"], "answer": "0°C"}
+{"question": "Fastest land animal?", "options": ["Cheetah", "Lion", "Tiger", "Leopard"], "answer": "Cheetah"}
+{"question": "Which is a programming language?", "options": ["HTML", "CSS", "Python", "SQL"], "answer": "Python"}
+{"question": "First element in periodic table?", "options": ["Hydrogen", "Helium", "Lithium", "Oxygen"], "answer": "Hydrogen"}
+{"question": "Who painted the Mona Lisa?", "options": ["Van Gogh", "Michelangelo", "Da Vinci", "Raphael"], "answer": "Da Vinci"}
+{"question": "What is 9 * 9?", "options": ["81", "72", "99", "90"], "answer": "81"}

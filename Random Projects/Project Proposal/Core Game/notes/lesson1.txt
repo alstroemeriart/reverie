@@ -1,3 +1,0 @@
-Python is an interpreted language = True
-A list is immutable = False
-The keyword to define a function is def = True

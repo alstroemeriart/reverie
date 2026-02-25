@@ -7,14 +7,18 @@ from combatSystem import (
     process_status_effects,
     display_entity_stats
 )
-from ui import title_screen, game_over_screen, typewriter
+from ui import title_screen, game_over_screen, typewriter, clear_screen
 from combatCalc import calculate_damage, check_dodge, check_critical
 from enemyPool import generate_random_enemy
 from learningEngine import LearningEngine
 
-learning_engine = LearningEngine()
+engine = LearningEngine()
 
-learning_engine.load_notes("notes/lesson1.txt")
+engine = LearningEngine()
+engine.load_notes("C:\\Users\\Larry Relativo\\OneDrive\\Desktop\\School\\Random Projects\\Project Proposal\\Core Game\\notes\\TorF.txt", qtype="TF")
+engine.load_notes("C:\\Users\\Larry Relativo\\OneDrive\\Desktop\\School\\Random Projects\\Project Proposal\\Core Game\\notes\\MCQ.txt", qtype="MC")
+engine.load_notes("C:\\Users\\Larry Relativo\\OneDrive\\Desktop\\School\\Random Projects\\Project Proposal\\Core Game\\notes\\Math.txt", qtype="AR")
+engine.load_notes("C:\\Users\\Larry Relativo\\OneDrive\\Desktop\\School\\Random Projects\\Project Proposal\\Core Game\\notes\\Identify.txt", qtype="ID")
 
 
 def create_character():
@@ -79,14 +83,17 @@ def main_game():
 
     enemy = generate_random_enemy()
 
+    typewriter("=" * 60)
     typewriter("\nWelcome to the Game-on Learning demo!")
     typewriter("In this battle, you'll face off against a fearsome enemy.")
     typewriter("But don't worry, with the power of knowledge, you will prevail!")
-    time.sleep(2)
+    time.sleep(1)
     typewriter("Let's get started!")
     time.sleep(1)
     typewriter("\nEntering combat...")
+    typewriter("=" * 60)
     time.sleep(2)
+    clear_screen()
 
     combat_active = True
 
@@ -97,7 +104,7 @@ def main_game():
         display_entity_stats(player)
         display_entity_stats(enemy)
 
-        battle_continues = player_turn(player, enemy, learning_engine)  # True = continue, False = escape
+        battle_continues = player_turn(player, enemy, engine)  # True = continue, False = escape
         process_status_effects(player)
         process_status_effects(enemy)
 
