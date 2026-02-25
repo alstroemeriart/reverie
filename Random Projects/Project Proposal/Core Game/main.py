@@ -1,6 +1,6 @@
-# main.py
-import time, os
-from Spawns import MainCharacter, Enemy
+import time, os, random
+from Spawns import MainCharacter, Enemy, Spawn, MainCharacter
+from items import HealingPotion, AttackBoost, HintPotion
 from combatSystem import (
     player_turn,
     enemy_turn,
@@ -26,36 +26,41 @@ def create_character():
 
     name = input("Enter your character name: ").strip()
 
-    if name.upper() == "Rynier143":
-        typewriter("⚡ DEBUG MODE ACTIVATED ⚡")
-
-    typewriter("\nChoose a class:")
-    typewriter("1. Warrior (High HP, High ATK)")
-    typewriter("2. Tank (Very High HP, High DEF)")
-    typewriter("3. Rogue (High SPD, Balanced ATK)")
-    typewriter("4. Custom Build")
+    typewriter("\nChoose a GOL Class:")
+    typewriter("1. Berserker (Glass Cannon) - High ATK, Low DEF")
+    typewriter("2. Duelist (Speedy Rogue) - High SPD, High CRIT, Low ATK")
+    typewriter("3. Sentinel (Average Sustain) - High HP, High DEF, Low SPD")
+    typewriter("4. Arcanist (Learning Focus) - High WIS, High Crit)")
+    typewriter("5. Gambler (High Risk/Reward) - Variance in all stats, Mismatch CRIT")
+    typewriter("6. Custom Build - Distribute your own stat points")
 
     choice = input("> ").strip()
-
+    # (name, hp, atk, def, spd, wisdom, crit_chance, crit_multiplier)
     if choice == "1":
-        return MainCharacter(name, 70, 20, 5, 4)
+        return MainCharacter(name, 30, 25, 2, 10, 5, 0.3, 2.5) #berserker
 
     elif choice == "2":
-        return MainCharacter(name, 90, 7, 10, 3)
+        return MainCharacter(name, 50, 5, 10, 10, 5, 0.8, 2.5) #duelist
 
     elif choice == "3":
-        return MainCharacter(name, 55, 10, 4, 8)
-
+        return MainCharacter(name, 80, 5, 15, 5, 5, 0.3, 1.5) #sentinel
+    
     elif choice == "4":
+        return MainCharacter(name, 40, 8, 5, 7, 30, 1, 3.0) #arcanist
+    
+    elif choice == "5":
+        return MainCharacter(name, random.randint(30, 100), random.randint(5, 40), random.randint(2, 15), random.randint(3, 20), random.randint(5, 25), random.randint(0, 1), random.uniform(0.5, 5)) #gambler
+
+    elif choice == "6":
         return custom_build(name)
 
     else:
-        typewriter("Invalid choice. Defaulting to Warrior.")
-        return MainCharacter(name, 70, 12, 5, 4)
+        typewriter("Invalid choice. Defaulting to Berserker.")
+        return MainCharacter(name, 30, 25, 2, 10, 5, 0.3, 2.5) # default berserker
     
 def custom_build(name):
-    typewriter("\nYou have 40 stat points to distribute.")
-    points = 40
+    typewriter("\nYou have 100 stat points to distribute.")
+    points = 100
 
     def allocate(stat_name):
         nonlocal points
@@ -70,18 +75,48 @@ def custom_build(name):
                 pass
             typewriter("Invalid amount.")
 
-    max_hp = 40 + allocate("HP")
+    max_hp = 20 + allocate("HP")
     atk = 5 + allocate("ATK")
     defense = 5 + allocate("DEF")
     spd = 5 + allocate("SPD")
+    wisdom = 5 + allocate("WISDOM")
+    crit_chance = 0 + allocate("CRIT_CHANCE") / 100
+    crit_multiplier = 0 + allocate("CRIT_MULTIPLIER") / 10
 
-    return MainCharacter(name, max_hp, atk, defense, spd)
+    return MainCharacter(name, max_hp, atk, defense, spd, wisdom, crit_chance, crit_multiplier)
+
+def start_combat(player, learning_engine, tier):
+    enemy = generate_random_enemy(tier=tier)
+
+    print(f"\nA wild {enemy.name} appears!")
+
+    combat_active = True
+
+    while combat_active:
+        display_entity_stats(player)
+        display_entity_stats(enemy)
+
+        # Player turn
+        combat_active = player_turn(player, enemy, learning_engine)
+        if not combat_active:
+            return False  # player ran
+
+        if enemy.hp <= 0:
+            print(f"{enemy.name} defeated!")
+            return True  # victory
+
+        # Enemy turn
+        enemy_turn(enemy, player)
+
+        if player.hp <= 0:
+            print("You were defeated...")
+            return None  # player dead
 
 def main_game():
     """Runs a full battle until someone dies or the player escapes."""
     player = create_character()
 
-    enemy = generate_random_enemy()
+    enemy = generate_random_enemy(tier=1)
 
     typewriter("=" * 60)
     typewriter("\nWelcome to the Game-on Learning demo!")
@@ -116,6 +151,8 @@ def main_game():
         if not enemy.is_alive():  # Enemy defeated
             typewriter(f"{enemy.name} has been defeated! {player.name} wins!")
             combat_active = False
+            xp_reward = 25 + (enemy.max_hp // 5)
+            player.exp += xp_reward
             break
 
         # -----------------------

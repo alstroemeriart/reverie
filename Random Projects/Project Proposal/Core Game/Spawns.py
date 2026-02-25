@@ -31,22 +31,47 @@ class Spawn:
 from items import HealingPotion, AttackBoost, HintPotion
 
 class MainCharacter(Spawn):
-    def __init__(self, name: str, max_hp: int = 100, atk: int = 10, defense: int = 5, spd: int = 5, int = 10, gold: int = 0):
-        # If the name is "DEBUG" (or any keyword you choose), create OP stats
-        if name.upper() == "Rynier143":
-            super().__init__(name, max_hp=999, atk=999, defense=999, spd=999, gold=999)
-            self.exp = 999
-            self.LVL = 99
-            self.crit_chance = 1
-            self.crit_multiplier = 3
-            self.inventory = ["Ultra Potion", "Mega Elixir", "Debug Scroll"]
-        else:
-            super().__init__(name, max_hp, atk, defense, spd, gold)
-            self.exp = 0
-            self.LVL = 1
-            self.crit_chance = 0.5
-            self.crit_multiplier = 1.5
-            self.inventory = []
+    def __init__(self, name, max_hp, atk, defense, speed, wisdom, crit_chance, crit_multiplier):
+        super().__init__(name, max_hp, atk, defense, speed, 0)
+        self.wisdom = wisdom
+        self.crit_chance = crit_chance
+        self.crit_multiplier = crit_multiplier
+
+        # Leveling and progression
+        self.lvl = 1
+        self.exp = 0
+        self.gain_xp = self.exp
+        self.xp_to_next = 100
+
+        self.inventory = [HealingPotion(), AttackBoost(), HintPotion()]
+
+        self.status_effects = []
+
+        def is_alive(self):
+            return self.hp > 0
+        
+        def gain_xp(self, amount):
+            self.xp += amount
+            print(f"Gained {amount} XP!")
+
+            while self.xp >= self.xp_to_next:
+                self.level_up()
+
+        def level_up(self):
+            self.xp -= self.xp_to_next
+            self.level += 1
+            self.xp_to_next = int(self.xp_to_next * 1.3)
+
+            # Stat scaling per level
+            self.max_hp += 10
+            self.atk += 2
+            self.defense += 1
+            self.spd += 1
+
+            self.hp = self.max_hp
+
+            print(f"\nLEVEL UP! You are now level {self.level}!")
+        
 
 class Enemy(Spawn):
     def __init__(self, name, hp, atk, defense, speed, crit_chance):
