@@ -1,0 +1,21 @@
+CHAPTER 2 : Control Structures - Selection
+
+Since Python is a high level language, we use words for logical operands (and, or, not)
+
+If Statement
+
+Condition - expression that evaluates to true or false
+a decision making structure that contains a condition and a body of statements
+
+If-else Statement
+
+Used with an if statement, contains a body of statement that is executed when the if statement condition is false
+
+Elif Statement
+
+Chaining decision statement with elif allows programmer to check for multiple conditions
+Checks a condition when the prior decision statement's condition is false
+
+If Elif Else Statement
+
+Can be chained with an if else statement to create a more complex decision statement
