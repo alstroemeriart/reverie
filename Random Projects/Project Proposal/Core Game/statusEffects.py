@@ -240,3 +240,21 @@ class DoubleGold(StatusEffect):
     def on_expire(self, entity):
         entity.gold_multiplier /= 2
         typewriter("Double Gold has expired.")
+
+# -----------------------------------
+# Vulnerable Debuff
+# -----------------------------------
+class Vulnerable(StatusEffect):
+    def __init__(self, duration, dodge_penalty=0.2):
+        super().__init__("Vulnerable", duration)
+        self.dodge_penalty = dodge_penalty
+
+    def on_apply(self, entity):
+        if not hasattr(entity, "dodge_modifier"):
+            entity.dodge_modifier = 0
+        entity.dodge_modifier -= self.dodge_penalty
+        typewriter(f"{entity.name} feels exposed! Dodge reduced by {int(self.dodge_penalty*100)}% for {self.duration} turns.")
+
+    def on_expire(self, entity):
+        entity.dodge_modifier += self.dodge_penalty
+        typewriter(f"{entity.name} is no longer vulnerable.")

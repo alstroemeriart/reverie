@@ -1,8 +1,9 @@
 import random, json
 import time
 from Spawns import MainCharacter, Enemy
-from items import HintPotion
+from items import AllItems
 from ui import typewriter
+
 
 class LearningEngine:
     def __init__(self):
@@ -52,6 +53,29 @@ class LearningEngine:
             return None
         return random.choice(self.questions)
     
+def random_item_pool(num_rewards=1):
+    """Select a random reward from the item pool with rarity weighting"""
+    rewards = []
+
+    for _ in range(num_rewards):
+        drop = random.randint(0, 100)
+        rarity = "common"  # default value
+        if drop < 30:
+            rarity = "common"
+        elif drop < 60:
+            rarity = "uncommon"
+        elif drop < 95:
+            rarity = "rare"
+        else:
+            rarity = "legendary"
+
+        possibilities = [i for i in AllItems if i["rarity"] == rarity]
+        if possibilities:
+            item_data = random.choice(possibilities)
+            rewards.append(item_data["class"]())
+
+    return rewards
+
 def quiz_trial(player, engine):
     """
     Dynamic choice-driven trial puzzle with visual map and delays:
@@ -62,10 +86,9 @@ def quiz_trial(player, engine):
     - Random chance of chest or trap
     - Visual ASCII map updates with each move
     """
-
     typewriter("\n=== Trial Exploration Challenge ===")
     time.sleep(1)
-    typewriter("You enter a mysterious labyrinth. Choose your paths wisely!")
+    typewriter("\nYou enter a mysterious labyrinth. Choose your paths wisely!")
     time.sleep(1)
 
     base_rewards = {"exp": 10, "gold": 5}
@@ -114,7 +137,7 @@ def quiz_trial(player, engine):
             typewriter("Correct! You proceed safely.")
             time.sleep(0.5)
 
-            # Base reward + optional bonus
+            # Base reward
             accumulated_rewards["exp"] += base_rewards["exp"]
             accumulated_rewards["gold"] += base_rewards["gold"]
 
@@ -133,18 +156,19 @@ def quiz_trial(player, engine):
                     typewriter(f"You gained +{bonus_amount} experience!")
                     time.sleep(0.5)
                 elif bonus == "item":
-                    item = "Small Healing Potion"
-                    accumulated_rewards["items"].append(item)
-                    typewriter(f"You discovered an item: {item}!")
-                    time.sleep(0.5)
+                    items = random_item_pool(num_rewards=1)
+                    accumulated_rewards["items"].extend(items)
+                    for item in items:
+                        typewriter(f"You discovered an item: {item.name}!")
+                        time.sleep(0.5)
 
         else:
             typewriter(f"Incorrect! The correct answer was: {q_data['answer']}")
             time.sleep(0.5)
-            # Punish streak and chance for further penalties
             player.streak = max(0, player.streak - 1)
             typewriter("Your streak decreased!")
             time.sleep(0.5)
+
             penalty_chance = random.random()
             if penalty_chance < 0.3:
                 lost_gold = min(accumulated_rewards["gold"], random.randint(2, 8))
@@ -161,9 +185,10 @@ def quiz_trial(player, engine):
             accumulated_rewards["exp"] += chest_exp
             typewriter(f"\nYou found a chest! +{chest_gold} gold, +{chest_exp} exp!")
             time.sleep(1)
-            if random.random() < 0.2:
-                player.max_hp += 5
-                typewriter("Permanent HP boost! +5 Max HP")
+            if random.random() < 0.2:  # 20% chance for permabuff
+                from statusEffects import DoubleGold
+                player.status_effects.append(DoubleGold(duration=5))
+                typewriter("Lucky bonus! You received Double Gold buff for 5 turns!")
                 time.sleep(1)
         elif special_event < 0.25:
             typewriter("\nYou stumble into a trap! Answer correctly to escape.")
@@ -175,54 +200,14 @@ def quiz_trial(player, engine):
                 in_maze = False
                 break
             else:
-                typewriter("You escaped the trap safely!")
+                typewriter("Correct! You escape the trap safely.")
                 time.sleep(0.5)
 
-        # Chance to end trial early
-        if moves >= 5 and random.random() < 0.2:
-            typewriter("\nYou sense an exit nearby.")
-            time.sleep(1)
+        # Exit after 5 moves or randomly continue
+        if moves >= 5 and random.random() < 0.3:
+            typewriter("\nYou find the exit of the maze. Trial completed!")
             in_maze = False
-
-        # Ask player if they want to continue
-        if in_maze:
-            cont_choice = input("Do you want to continue deeper into the trial? (y/n) > ").strip().lower()
-            if cont_choice != "y":
-                typewriter("You decide to exit the trial safely.")
-                time.sleep(1)
-                in_maze = False
-
-    # Post-trial high-risk trial
-    if moves >= 5:
-        typewriter("\nYou found the final treasure chamber!")
-        choice = input("Attempt High-Risk Trial for double rewards and permanent buffs? (y/n) > ").strip().lower()
-        if choice == "y":
-            typewriter("\nHigh-Risk Trial: Answer 3 questions correctly to double rewards.")
-            time.sleep(1)
-            trial_correct = 0
-            for i in range(3):
-                trial_q = engine.get_random_question()
-                ans = input(f"{trial_q['question']} > ").strip().lower()
-                if ans == trial_q["answer"].strip().lower():
-                    trial_correct += 1
-                    typewriter("Correct!")
-                else:
-                    typewriter(f"Wrong! The correct answer was: {trial_q['answer']}")
-                time.sleep(0.5)
-
-            if trial_correct == 3:
-                typewriter("Perfect! Rewards doubled and permanent buffs granted!")
-                accumulated_rewards["gold"] *= 2
-                accumulated_rewards["exp"] *= 2
-                player.max_hp += 10
-                typewriter("Permanent +10 HP gained!")
-                time.sleep(1)
-            else:
-                typewriter("You failed the trial. Rewards halved and streak penalized!")
-                accumulated_rewards["gold"] //= 2
-                accumulated_rewards["exp"] //= 2
-                player.streak = max(0, player.streak - 2)
-                time.sleep(1)
+            break
 
     # Apply accumulated rewards
     player.gold += accumulated_rewards["gold"]
@@ -230,9 +215,12 @@ def quiz_trial(player, engine):
     for item in accumulated_rewards["items"]:
         player.inventory.append(item)
 
-    typewriter("\n=== Trial Exploration Complete ===")
-    typewriter(f"Total Gold: {accumulated_rewards['gold']}, Total Exp: {accumulated_rewards['exp']}")
+    typewriter(f"\nTrial Rewards Summary:")
+    typewriter(f"- Gold: {accumulated_rewards['gold']}")
+    typewriter(f"- Exp: {accumulated_rewards['exp']}")
     if accumulated_rewards["items"]:
-        typewriter(f"Items gained: {', '.join(accumulated_rewards['items'])}")
-    typewriter(f"Final Streak: {player.streak}")
-    time.sleep(6)
+        typewriter("- Items:")
+        for item in accumulated_rewards["items"]:
+            typewriter(f"  - {item.name}")
+
+    time.sleep(1)

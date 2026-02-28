@@ -7,7 +7,7 @@ from Spawns import Spawn
 # Combat States
 # -----------------------------
 CONTINUE = "continue"
-ESCAPE = "escape"
+ESCAPED = "escaped"
 WIN = "win"
 DEATH = "death"
 
@@ -17,9 +17,15 @@ DEATH = "death"
 def check_dodge(attacker, defender):
     """Return True if defender dodges the attack (includes streak bonus)."""
     base_chance = defender.spd * 0.02
-    # Add streak bonus if defender is a MainCharacter
+
+    # Streak bonus
     if hasattr(defender, "streak_dodge_bonus"):
         base_chance += defender.streak_dodge_bonus()
+
+    # Vulnerable / other modifiers
+    if hasattr(defender, "dodge_modifier"):
+        base_chance += defender.dodge_modifier  # can be negative
+
     return random.random() < base_chance
 
 def check_critical(attacker):
@@ -292,11 +298,37 @@ def choice_run(player, enemy):
     run_chance = min(0.9, max(0.1, run_chance))
 
     if random.random() < run_chance:
-        typewriter("You successfully escaped!")
+        typewriter("You successfully escaped, but at a cost!")
         time.sleep(1)
-        return ESCAPE
+
+        # Penalty
+        lost_gold = min(player.gold, random.randint(5, 15))
+        player.gold -= lost_gold
+        player.streak = max(0, player.streak // 2)
+
+        # Apply temporary debuffs
+        from statusEffects import AttackDebuff, Vulnerable
+
+        attack_debuff = AttackDebuff(amount=5, duration=2)
+        attack_debuff.on_apply(player)
+        player.status_effects.append(attack_debuff)
+
+        vulnerable = Vulnerable(duration=2)
+        vulnerable.on_apply(player)
+        player.status_effects.append(vulnerable)
+
+        typewriter(f"You lost {lost_gold} Gold!")
+        typewriter("Your streak is halved!")
+        typewriter("You feel vulnerable and weaker for 2 turns!")
+        time.sleep(1)
+
+        return ESCAPED
+
     else:
         typewriter("Failed to escape!")
+        time.sleep(0.5)
+
+        # Enemy attacks immediately
         if not check_dodge(enemy, player):
             dmg, is_crit = calculate_damage(enemy, player, 0, 3)
             player.take_dmg(dmg)
@@ -304,7 +336,8 @@ def choice_run(player, enemy):
                 typewriter("Enemy CRITICAL HIT!")
             typewriter(f"{enemy.name} hits you for {dmg} dmg!")
         else:
-            typewriter("You dodged the punishment attack!")
+            typewriter("You dodged the enemy's counterattack!")
+
         time.sleep(1)
         return CONTINUE
 

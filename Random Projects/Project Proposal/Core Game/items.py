@@ -11,7 +11,6 @@ class Item:
     def use(self, user, target=None):
         return f"{user.name} used {self.name}, but nothing happened."
 
-
 # =========================
 # HEALING ITEMS
 # =========================
@@ -27,7 +26,6 @@ class HealingPotion(Item):
         user.heal(self.heal_amount)
         return f"{user.name} heals {self.heal_amount} HP!"
 
-
 class MegaHealingPotion(Item):
     name = "Mega Healing Potion"
     price = 35
@@ -38,8 +36,7 @@ class MegaHealingPotion(Item):
     def use(self, user, target=None):
         user.heal(self.heal_amount)
         return f"{user.name} restores {self.heal_amount} HP!"
-
-
+    
 # =========================
 # BUFF ITEMS
 # =========================
@@ -59,7 +56,6 @@ class AttackBoost(Item):
         buff.on_apply(user)
         return f"ATK +{self.boost_amount} for {self.duration} turns!"
 
-
 class DefenseBoost(Item):
     name = "Defense Boost"
     price = 25
@@ -75,7 +71,6 @@ class DefenseBoost(Item):
         buff.on_apply(user)
         return f"DEF +{self.boost_amount} for {self.duration} turns!"
 
-
 class SpeedBoost(Item):
     name = "Speed Boost"
     price = 30
@@ -90,7 +85,6 @@ class SpeedBoost(Item):
         user.status_effects.append(buff)
         buff.on_apply(user)
         return f"SPD +{self.boost_amount} for {self.duration} turns!"
-
 
 # =========================
 # DEBUFF ITEMS (Require New Status Effects)
@@ -113,7 +107,6 @@ class PoisonBomb(Item):
         poison.on_apply(target)
         return f"{target.name} is poisoned for {self.duration} turns!"
 
-
 class FreezeScroll(Item):
     name = "Freeze Scroll"
     price = 35
@@ -129,7 +122,6 @@ class FreezeScroll(Item):
         target.status_effects.append(freeze)
         freeze.on_apply(target)
         return f"{target.name} is frozen and skips {self.duration} turn(s)!"
-
 
 class WeaknessCurse(Item):
     name = "Weakness Curse"
@@ -148,7 +140,6 @@ class WeaknessCurse(Item):
         debuff.on_apply(target)
         return f"{target.name}'s ATK reduced by {self.reduction} for {self.duration} turns!"
 
-
 # =========================
 # SPECIAL ITEMS
 # =========================
@@ -160,7 +151,6 @@ class HintPotion(Item):
     def use(self, user, target=None):
         user.hint_active = True
         return "Your next question will be easier!"
-
 
 class DoubleGoldCharm(Item):
     name = "Double Gold Charm"
@@ -176,7 +166,6 @@ class DoubleGoldCharm(Item):
         buff.on_apply(user)
         return f"Gold rewards doubled for {self.duration} turns!"
 
-
 class RevivalStone(Item):
     name = "Revival Stone"
     price = 50
@@ -186,3 +175,17 @@ class RevivalStone(Item):
             user.hp = user.max_hp // 2
             return f"{user.name} is revived with {user.hp} HP!"
         return "Nothing happened."
+    
+AllItems = [
+    {"class": HealingPotion, "name": "Healing Potion", "rarity": "common"},
+    {"class": MegaHealingPotion, "name": "Mega Healing Potion", "rarity": "uncommon"},
+    {"class": AttackBoost, "name": "Attack Boost", "rarity": "uncommon"},
+    {"class": DefenseBoost, "name": "Defense Boost", "rarity": "uncommon"},
+    {"class": SpeedBoost, "name": "Speed Boost", "rarity": "uncommon"},
+    {"class": PoisonBomb, "name": "Poison Bomb", "rarity": "rare"},
+    {"class": FreezeScroll, "name": "Freeze Scroll", "rarity": "rare"},
+    {"class": WeaknessCurse, "name": "Weakness Curse", "rarity": "rare"},
+    {"class": HintPotion, "name": "Hint Potion", "rarity": "common"},
+    {"class": DoubleGoldCharm, "name": "Double Gold Charm", "rarity": "rare"},
+    {"class": RevivalStone, "name": "Revival Stone", "rarity": "legendary"},
+]

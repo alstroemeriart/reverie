@@ -6,7 +6,8 @@ from combatSystem import (
     player_turn,
     enemy_turn,
     process_status_effects,
-    display_entity_stats
+    display_entity_stats,
+    ESCAPED, CONTINUE, WIN, DEATH
 )
 from ui import title_screen, game_over_screen, typewriter, clear_screen
 from combatCalc import calculate_damage, check_dodge, check_critical
@@ -154,58 +155,66 @@ def custom_build(name):
     return MainCharacter(name, max_hp, atk, defense, spd, wisdom, crit_chance, crit_multiplier)
 
 def start_combat(player, learning_engine, tier):
+    """Full combat loop handling turns, status effects, escape, and victory."""
+
     enemy = generate_random_enemy(tier=tier)
-    print(f"\nA wild {enemy.name} appears!")
+    typewriter(f"\nA wild {enemy.name} appears!")
+    time.sleep(1)
+
     combat_active = True
 
-    def apply_status(entity, effect):
-        effect.on_apply(entity)
-        entity.status_effects.append(effect)
-
-    def process_turn_start(entity):
-        entity.is_stunned = False  # reset each turn
-        for effect in entity.status_effects:
-            effect.on_turn_start(entity)
-
-
-    def process_turn_end(entity):
-        expired = []
-        for effect in entity.status_effects:
-            effect.on_turn_end(entity)
-            if effect.is_expired():
-                effect.on_expire(entity)
-                expired.append(effect)
-
-        for e in expired:
-            entity.status_effects.remove(e)
-
     while combat_active:
+
+        # --- Display Stats ---
         display_entity_stats(player)
         display_entity_stats(enemy)
 
-        # Player turn
+        # --- Process Player Turn ---
         result = player_turn(player, enemy, learning_engine)
 
-        if result == "Escaped":
-            return "Escaped"  # escape ends combat
+        if result == ESCAPED:
+            typewriter("You successfully escaped the battle!")
+            time.sleep(1)
+            return ESCAPED
 
-        # Check if enemy defeated
         if enemy.hp <= 0:
-            print(f"{enemy.name} defeated!")
-            return True  # victory
+            typewriter(f"{enemy.name} defeated!")
+            time.sleep(1)
+            return WIN
 
-        # Check if player defeated after player turn (e.g., enemy punishment in choice_ask)
         if player.hp <= 0:
-            print("You were defeated...")
-            return None  # player dead
+            typewriter("You were defeated...")
+            time.sleep(1)
+            return DEATH
 
-        # Enemy turn
+        # --- Process Status Effects (player before enemy) ---
+        process_status_effects(player)
+
+        if enemy.hp <= 0:
+            typewriter(f"{enemy.name} defeated!")
+            time.sleep(1)
+            return WIN
+
+        if player.hp <= 0:
+            typewriter("You were defeated...")
+            time.sleep(1)
+            return DEATH
+
+        # --- Enemy Turn ---
         enemy_turn(enemy, player)
 
-        # Check if player defeated after enemy turn
+        # --- Process Status Effects (enemy after action) ---
+        process_status_effects(enemy)
+
         if player.hp <= 0:
-            print("You were defeated...")
-            return None  # player dead
+            typewriter("You were defeated...")
+            time.sleep(1)
+            return DEATH
+
+        if enemy.hp <= 0:
+            typewriter(f"{enemy.name} defeated!")
+            time.sleep(1)
+            return WIN
 
 def main_game():
     """Runs a full RPG loop until player dies or escapes."""
@@ -214,7 +223,7 @@ def main_game():
     battles_won = 0
     nodes_cleared = 0
 
-    # Starting gold for shop
+    # Starting gold and stats
     player.gold = 50
     player.exp = 0
     player.streak = 0  
@@ -224,138 +233,111 @@ def main_game():
     typewriter("Use knowledge and strategy to defeat enemies and gain rewards.")
     typewriter("Gold earned can be used in the shop to buy items.")
     typewriter("=" * 60)
-    time.sleep(6)
+    time.sleep(2)
+    typewriter("Loading Combat...")
+    time.sleep(1)
     clear_screen()
 
-    time.sleep(2)
     typewriter("=== ROGUELITE RUN STARTED ===")
     time.sleep(1)
 
-    while player.is_alive():
+    run_active = True
+    while run_active and player.is_alive():
 
         nodes_cleared += 1
 
-        # =========================================
-        # CONTROLLED EARLY GAME STRUCTURE
-        # =========================================
+        # -------------------------
+        # Determine next node
+        # -------------------------
         if nodes_cleared == 1:
-            # Always start with battle
             next_node = PathNode("battle", tier=current_tier)
-
         elif nodes_cleared == 2:
-            # Only battle or rest
-            node_type = random.choice(["battle", "rest"])
-            next_node = PathNode(node_type, tier=current_tier)
-
+            next_node = PathNode(random.choice(["battle", "rest"]), tier=current_tier)
         else:
-            # Fully randomized after node 2
             next_node = choose_next_path(current_tier)
 
         typewriter(f"\nYou proceed toward: {next_node.node_type.upper()}")
-        time.sleep(1)
+        time.sleep(0.5)
 
-        # =========================
-        # BATTLE NODE
-        # =========================
-        if next_node.node_type == "battle":
+        # -------------------------
+        # Handle Node Types
+        # -------------------------
+        # Battle / Elite
+        if next_node.node_type in ["battle", "elite"]:
+            tier = next_node.tier + (1 if next_node.node_type == "elite" else 0)
+            result = start_combat(player, engine, tier)
 
-            result = start_combat(player, engine, next_node.tier)
+            if result == "DEAD":
+                # Player died, end run
+                typewriter("\n=== GAME OVER ===")
+                game_over_screen()
+                return  # exit run immediately
 
-            if result is None:
-                break
+            elif result == "Escaped":
+                typewriter("You escaped the battle — no rewards gained!")
+                # Optional: apply a small penalty for running
+                lost_gold = min(player.gold, random.randint(5, 15))
+                player.gold -= lost_gold
+                typewriter(f"Running costs you {lost_gold} gold!")
+                time.sleep(1)
+                continue  # move to next node without rewards
 
-            if result != "Escaped":
+            else:
+                # Victory: give rewards
                 battles_won += 1
-
-                xp_reward = 20 + (current_tier * 5)
-                gold_reward = 15 + (current_tier * 5)
+                if next_node.node_type == "battle":
+                    xp_reward = 20 + (current_tier * 5)
+                    gold_reward = 15 + (current_tier * 5)
+                else:  # elite
+                    xp_reward = 50 + (current_tier * 10)
+                    gold_reward = 40 + (current_tier * 10)
+                    player.max_hp += 5
+                    typewriter("Permanent +5 Max HP!")
 
                 player.exp += xp_reward
                 player.gold += gold_reward
-
                 typewriter(f"You gained {xp_reward} EXP and {gold_reward} Gold!")
                 time.sleep(1)
 
-        # =========================
-        # ELITE NODE
-        # =========================
-        elif next_node.node_type == "elite":
-
-            typewriter("This enemy feels dangerous...")
-            time.sleep(1)
-
-            result = start_combat(player, engine, next_node.tier + 1)
-
-            if result is None:
-                break
-
-            if result != "Escaped":
-                xp_reward = 50 + (current_tier * 10)
-                gold_reward = 40 + (current_tier * 10)
-
-                player.exp += xp_reward
-                player.gold += gold_reward
-
-                player.max_hp += 5
-
-                typewriter("Elite defeated!")
-                typewriter(f"+{xp_reward} EXP, +{gold_reward} Gold")
-                typewriter("Permanent +5 Max HP!")
-                time.sleep(1)
-
-        # =========================
-        # SHOP NODE
-        # =========================
+        # Shop
         elif next_node.node_type == "shop":
             shop(player)
 
-        # =========================
-        # MAZE NODE
-        # =========================
+        # Maze / Quiz Trial
         elif next_node.node_type == "maze":
             quiz_trial(player, engine)
 
-        # =========================
-        # REST NODE
-        # =========================
+        # Rest
         elif next_node.node_type == "rest":
             heal_amount = int(player.max_hp * 0.3)
             player.hp = min(player.max_hp, player.hp + heal_amount)
             typewriter(f"You rest and recover {heal_amount} HP.")
             time.sleep(1)
 
-        # =========================
-        # DIFFICULTY SCALING
-        # =========================
+        # -------------------------
+        # Difficulty scaling & passive recovery
+        # -------------------------
         if nodes_cleared % 5 == 0:
             current_tier = min(current_tier + 1, 5)
             typewriter("The world grows more dangerous...")
             time.sleep(1)
 
-        # Small passive recovery after each node
         player.hp = min(player.max_hp, player.hp + int(player.max_hp * 0.05))
-
         typewriter(f"Current HP: {player.hp}/{player.max_hp}")
         typewriter(f"Gold: {player.gold} | EXP: {player.exp}")
-        time.sleep(1)
+        time.sleep(0.5)
 
-    # =========================
-    # RUN ENDS
-    # =========================
-    time.sleep(2)
-
-    # Clear for next round
+    # -------------------------
+    # Run Summary
+    # -------------------------
     clear_screen()
-
-    # End summary
     typewriter("\n=== RUN ENDED ===")
     typewriter(f"Battles Won: {battles_won}")
     typewriter(f"Nodes Cleared: {nodes_cleared}")
     typewriter(f"Final Gold: {player.gold}")
     time.sleep(2)
-    typewriter("\nBattle concluded. Returning to main menu...")
-    time.sleep(2)
-
+    typewriter("\nReturning to main menu...")
+    time.sleep(1)
 
 if __name__ == "__main__":
     while True:
