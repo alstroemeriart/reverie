@@ -51,7 +51,7 @@ def title_screen():
         print(game_title)
         print("=" * 60)
         typewriter("\n1. Start Game", 0.03)
-        typewriter("2. Exit", 0.03)
+        typewriter("2. Exit\n", 0.03)
         print("=" * 60)
 
         choice = input("Enter your choice: ").strip()
@@ -74,7 +74,7 @@ def game_over_screen():
         print(game_over_art)
         print("=" * 60)
         typewriter("\n1. Restart", 0.03)
-        typewriter("2. Exit", 0.03)
+        typewriter("2. Exit\n", 0.03)
         print("=" * 60)
 
         choice = input("Enter your choice: ").strip()

@@ -1,2 +1,1 @@
-player.xp += xp_reward
- 
+rn_start(entity):

@@ -14,8 +14,42 @@ def check_critical(attacker):
         return True
     return False
 
-
 def calculate_damage(attacker, defender):
+
+    # -----------------------------
+    # 1. Base Damage
+    # -----------------------------
+    base_damage = attacker.atk - defender.defense
+    base_damage = max(1, base_damage)
+
+    # -----------------------------
+    # 2. Streak Scaling (Soft Cap)
+    # -----------------------------
+    streak = getattr(attacker, "streak", 0)
+
+    # Soft scaling formula to prevent runaway damage
+    # Early streak feels strong, later streak scales slower
+    streak_multiplier = 1 + (streak * 0.05) / (1 + streak * 0.02)
+
+    # -----------------------------
+    # 3. Wisdom Scaling
+    # -----------------------------
+    wisdom = getattr(attacker, "wisdom", 0)
+    wisdom_bonus = 1 + (wisdom * 0.01)
+
+    # -----------------------------
+    # 4. Mastery Bonus (Future Expansion Ready)
+    # -----------------------------
+    mastery_bonus = 1.0
+    if hasattr(attacker, "mastery"):
+        total_mastery = sum(attacker.mastery.values())
+        mastery_bonus += total_mastery * 0.002  # small long-term scaling
+
+    # -----------------------------
+    # 5. Final Calculation
+    # -----------------------------
+    damage = base_damage * streak_multiplier * wisdom_bonus * mastery_bonus
+
     base_damage = attacker.attack - defender.defense
     if base_damage < 1:
         base_damage = 1
