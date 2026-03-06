@@ -1,7 +1,7 @@
 import random, json
 import time
 from Spawns import MainCharacter, Enemy
-from items import AllItems
+from aid import AllItems
 from ui import typewriter
 
 
@@ -54,7 +54,7 @@ class LearningEngine:
         return random.choice(self.questions)
     
 def random_item_pool(num_rewards=1):
-    """Select a random reward from the item pool with rarity weighting"""
+    """Select a random reward from the aid pool with rarity weighting"""
     rewards = []
 
     for _ in range(num_rewards):
@@ -92,7 +92,7 @@ def quiz_trial(player, engine):
     time.sleep(1)
 
     base_rewards = {"exp": 10, "gold": 5}
-    accumulated_rewards = {"exp": 0, "gold": 0, "items": []}
+    accumulated_rewards = {"exp": 0, "gold": 0, "aid": []}
     moves = 0
     in_maze = True
     maze_map = []  # keeps track of paths taken for visual map
@@ -142,7 +142,7 @@ def quiz_trial(player, engine):
             accumulated_rewards["gold"] += base_rewards["gold"]
 
             # Optional bonus rewards
-            bonus_options = ["gold", "exp", "item", "none"]
+            bonus_options = ["gold", "exp", "aid", "none"]
             bonus_choices = random.sample(bonus_options, random.choice([1, 2]))
             for bonus in bonus_choices:
                 if bonus == "gold":
@@ -155,11 +155,11 @@ def quiz_trial(player, engine):
                     accumulated_rewards["exp"] += bonus_amount
                     typewriter(f"You gained +{bonus_amount} experience!")
                     time.sleep(0.5)
-                elif bonus == "item":
-                    items = random_item_pool(num_rewards=1)
-                    accumulated_rewards["items"].extend(items)
-                    for item in items:
-                        typewriter(f"You discovered an item: {item.name}!")
+                elif bonus == "aid":
+                    aid = random_item_pool(num_rewards=1)
+                    accumulated_rewards["aid"].extend(aid)
+                    for aid in aid:
+                        typewriter(f"You discovered an aid: {aid.name}!")
                         time.sleep(0.5)
 
         else:
@@ -212,15 +212,15 @@ def quiz_trial(player, engine):
     # Apply accumulated rewards
     player.gold += accumulated_rewards["gold"]
     player.exp += accumulated_rewards["exp"]
-    for item in accumulated_rewards["items"]:
-        player.inventory.append(item)
+    for aid in accumulated_rewards["aid"]:
+        player.inventory.append(aid)
 
     typewriter(f"\nTrial Rewards Summary:")
     typewriter(f"- Gold: {accumulated_rewards['gold']}")
     typewriter(f"- Exp: {accumulated_rewards['exp']}")
-    if accumulated_rewards["items"]:
-        typewriter("- Items:")
-        for item in accumulated_rewards["items"]:
-            typewriter(f"  - {item.name}")
+    if accumulated_rewards["aid"]:
+        typewriter("- Aid:")
+        for aid in accumulated_rewards["aid"]:
+            typewriter(f"  - {aid.name}")
 
     time.sleep(1)

@@ -28,7 +28,7 @@ The system must be modular and separated into layers:
 2. Question Engine (parses notes and generates questions)
 3. Combat System (damage calculation, stat scaling)
 4. Dungeon System (room structure + procedural generation)
-5. Item & Potion System
+5. Aid & Potion System
 6. Boss System
 7. UI Layer (Tkinter or Pygame frontend)
 
@@ -39,7 +39,7 @@ Core Systems To Implement
     - Stats (HP, Attack, Defense, Intelligence, Speed, etc.)
     - Stat allocation system
     - Experience and leveling
-    - Inventory (potions/items)
+    - Inventory (potions/aid)
 
 2. Question Engine
     - Load external notes file
@@ -57,7 +57,7 @@ Core Systems To Implement
     - Mini-boss and boss phases
 
 4. Potion System
-    - Items that:
+    - Aid that:
         * Remove incorrect choices
         * Extend timer
         * Increase damage multiplier

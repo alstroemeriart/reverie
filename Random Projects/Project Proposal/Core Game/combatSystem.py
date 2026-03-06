@@ -79,7 +79,7 @@ def player_turn(player, enemy, learning_engine):
         typewriter(f"\n{player.name}'s turn! Choose your action:")
         typewriter("1. Attack")
         typewriter("2. Ask")
-        typewriter("3. Item")
+        typewriter("3. Aid")
         typewriter("4. Run")
 
         choice = input("> ").strip()
@@ -264,16 +264,16 @@ def choice_ask(player, enemy, engine):
 
 def choice_item(player):
     if not player.inventory:
-        typewriter("You have no items!")
+        typewriter("You have no aid!")
         return True
 
     typewriter("\nYour Inventory:")
-    for i, item in enumerate(player.inventory, 1):
-        typewriter(f"{i}. {item.name}")
+    for i, aid in enumerate(player.inventory, 1):
+        typewriter(f"{i}. {aid.name}")
     typewriter(f"{len(player.inventory)+1}. Cancel")
 
     try:
-        choice = int(input("Choose an item: ").strip())
+        choice = int(input("Choose an aid: ").strip())
     except:
         typewriter("Invalid choice.")
         return True
@@ -286,8 +286,8 @@ def choice_item(player):
         typewriter("Invalid choice.")
         return True
 
-    item = player.inventory.pop(choice-1)
-    typewriter(item.use(player))
+    aid = player.inventory.pop(choice-1)
+    typewriter(aid.use(player))
     return True
 
 def choice_run(player, enemy):

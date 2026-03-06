@@ -1,11 +1,11 @@
-# items.py
+# aid.py
 from statusEffects import StatusEffect
 from ui import typewriter
 import random
 
-class Item:
-    """Base class for items."""
-    name = "Generic Item"
+class Aid:
+    """Base class for aid."""
+    name = "Generic Aid"
     price = 10  # default shop price
 
     def use(self, user, target=None):
@@ -15,7 +15,7 @@ class Item:
 # HEALING ITEMS
 # =========================
 
-class HealingPotion(Item):
+class HealingPotion(Aid):
     name = "Healing Potion"
     price = 15
 
@@ -26,7 +26,7 @@ class HealingPotion(Item):
         user.heal(self.heal_amount)
         return f"{user.name} heals {self.heal_amount} HP!"
 
-class MegaHealingPotion(Item):
+class MegaHealingPotion(Aid):
     name = "Mega Healing Potion"
     price = 35
 
@@ -41,7 +41,7 @@ class MegaHealingPotion(Item):
 # BUFF ITEMS
 # =========================
 
-class AttackBoost(Item):
+class AttackBoost(Aid):
     name = "Attack Boost"
     price = 25
 
@@ -56,7 +56,7 @@ class AttackBoost(Item):
         buff.on_apply(user)
         return f"ATK +{self.boost_amount} for {self.duration} turns!"
 
-class DefenseBoost(Item):
+class DefenseBoost(Aid):
     name = "Defense Boost"
     price = 25
 
@@ -71,7 +71,7 @@ class DefenseBoost(Item):
         buff.on_apply(user)
         return f"DEF +{self.boost_amount} for {self.duration} turns!"
 
-class SpeedBoost(Item):
+class SpeedBoost(Aid):
     name = "Speed Boost"
     price = 30
 
@@ -90,7 +90,7 @@ class SpeedBoost(Item):
 # DEBUFF ITEMS (Require New Status Effects)
 # =========================
 
-class PoisonBomb(Item):
+class PoisonBomb(Aid):
     name = "Poison Bomb"
     price = 30
 
@@ -107,7 +107,7 @@ class PoisonBomb(Item):
         poison.on_apply(target)
         return f"{target.name} is poisoned for {self.duration} turns!"
 
-class FreezeScroll(Item):
+class FreezeScroll(Aid):
     name = "Freeze Scroll"
     price = 35
 
@@ -123,7 +123,7 @@ class FreezeScroll(Item):
         freeze.on_apply(target)
         return f"{target.name} is frozen and skips {self.duration} turn(s)!"
 
-class WeaknessCurse(Item):
+class WeaknessCurse(Aid):
     name = "Weakness Curse"
     price = 30
 
@@ -144,7 +144,7 @@ class WeaknessCurse(Item):
 # SPECIAL ITEMS
 # =========================
 
-class HintPotion(Item):
+class HintPotion(Aid):
     name = "Hint Potion"
     price = 20
 
@@ -152,7 +152,7 @@ class HintPotion(Item):
         user.hint_active = True
         return "Your next question will be easier!"
 
-class DoubleGoldCharm(Item):
+class DoubleGoldCharm(Aid):
     name = "Double Gold Charm"
     price = 40
 
@@ -166,7 +166,7 @@ class DoubleGoldCharm(Item):
         buff.on_apply(user)
         return f"Gold rewards doubled for {self.duration} turns!"
 
-class RevivalStone(Item):
+class RevivalStone(Aid):
     name = "Revival Stone"
     price = 50
 

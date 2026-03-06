@@ -1,7 +1,7 @@
 # Main game loop and character creation
 import time, os, random
 from Spawns import MainCharacter, Enemy, Spawn
-from items import HealingPotion, AttackBoost, HintPotion
+from aid import HealingPotion, AttackBoost, HintPotion
 from combatSystem import (
     player_turn,
     enemy_turn,
@@ -231,7 +231,7 @@ def main_game():
     typewriter("=" * 60)
     typewriter("\nWelcome to the Game-on Learning demo!")
     typewriter("Use knowledge and strategy to defeat enemies and gain rewards.")
-    typewriter("Gold earned can be used in the shop to buy items.")
+    typewriter("Gold earned can be used in the shop to buy aid.")
     typewriter("=" * 60)
     time.sleep(2)
     typewriter("Loading Combat...")

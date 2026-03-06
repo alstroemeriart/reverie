@@ -1,6 +1,6 @@
 # shop.py
 from ui import typewriter
-from items import (
+from aid import (
     HealingPotion, AttackBoost, HintPotion,
     DefenseBoost, MegaHealingPotion, SpeedBoost,
     PoisonBomb, FreezeScroll, WeaknessCurse,
@@ -8,7 +8,7 @@ from items import (
 )
 import random, time
 
-# Full item pool (can expand further later)
+# Full aid pool (can expand further later)
 ITEM_POOL = [
     HealingPotion,
     AttackBoost,
@@ -24,13 +24,13 @@ ITEM_POOL = [
 ]
 
 def shop(player):
-    """Roguelite shop with 5 random items per visit."""
+    """Roguelite shop with 5 random aid per visit."""
     while True:
         typewriter("\n=== Welcome to the Shop ===")
         typewriter(f"Gold: {player.gold}")
         time.sleep(0.5)
 
-        # Randomly select 5 items to sell this visit
+        # Randomly select 5 aid to sell this visit
         items_for_sale = random.sample(ITEM_POOL, k=min(5, len(ITEM_POOL)))
         item_slots = []
 
@@ -57,13 +57,13 @@ def shop(player):
             return  # exit shop
 
         if 1 <= choice <= len(item_slots):
-            item, price = item_slots[choice-1]
+            aid, price = item_slots[choice-1]
             final_price = player.shop_discount(price)
 
             if player.gold >= final_price:
                 player.gold -= final_price
-                player.inventory.append(item)
-                typewriter(f"You bought {item.name}!")
+                player.inventory.append(aid)
+                typewriter(f"You bought {aid.name}!")
                 typewriter(f"Gold remaining: {player.gold}")
                 time.sleep(0.5)
             else:
