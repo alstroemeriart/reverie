@@ -1,9 +1,66 @@
 <mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36 OPR/127.0.0.0" version="29.6.1">
   <diagram name="Page-1" id="7YYS7GoDrRKAgSby5eIm">
-    <mxGraphModel>
+    <mxGraphModel dx="876" dy="602" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
+        <mxCell id="wYAVfRGM6Ns3bUwWbo9F-5" edge="1" parent="1" source="wYAVfRGM6Ns3bUwWbo9F-1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="wYAVfRGM6Ns3bUwWbo9F-3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="wYAVfRGM6Ns3bUwWbo9F-1" parent="1" style="ellipse;whiteSpace=wrap;html=1;labelBackgroundColor=none;fontStyle=1;fontSize=16;fontFamily=Helvetica;strokeWidth=2;fillColor=#0050ef;fontColor=#ffffff;strokeColor=#001DBC;" value="START" vertex="1">
+          <mxGeometry height="70" width="140" x="355" y="10" as="geometry" />
+        </mxCell>
+        <mxCell id="wYAVfRGM6Ns3bUwWbo9F-7" edge="1" parent="1" source="wYAVfRGM6Ns3bUwWbo9F-3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="wYAVfRGM6Ns3bUwWbo9F-6" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="wYAVfRGM6Ns3bUwWbo9F-3" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fontStyle=1;labelBackgroundColor=none;fillColor=#e51400;fontColor=#ffffff;strokeColor=#B20000;fontFamily=Helvetica;" value="TRIAL NODE" vertex="1">
+          <mxGeometry height="40" width="120" x="365" y="110" as="geometry" />
+        </mxCell>
+        <mxCell id="wYAVfRGM6Ns3bUwWbo9F-9" edge="1" parent="1" source="wYAVfRGM6Ns3bUwWbo9F-6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="wYAVfRGM6Ns3bUwWbo9F-8" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="wYAVfRGM6Ns3bUwWbo9F-6" parent="1" style="whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;rounded=0;fontStyle=1;labelBackgroundColor=none;rotation=0;" value="&lt;span style=&quot;font-weight: normal;&quot;&gt;Initialize Rewards = 0,&amp;nbsp;&lt;/span&gt;&lt;div&gt;&lt;span style=&quot;font-weight: normal;&quot;&gt;Moves = 0&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;font-weight: normal;&quot;&gt;Initialize quiz_trial()&lt;/span&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="60" width="160" x="345" y="180" as="geometry" />
+        </mxCell>
+        <mxCell id="wYAVfRGM6Ns3bUwWbo9F-11" edge="1" parent="1" source="wYAVfRGM6Ns3bUwWbo9F-8" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="wYAVfRGM6Ns3bUwWbo9F-10" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="wYAVfRGM6Ns3bUwWbo9F-8" parent="1" style="whiteSpace=wrap;html=1;fillColor=#e51400;strokeColor=#B20000;rounded=0;fontStyle=1;labelBackgroundColor=none;fontColor=#ffffff;" value="QUIZ TRIAL LOOP" vertex="1">
+          <mxGeometry height="40" width="120" x="365" y="270" as="geometry" />
+        </mxCell>
+        <mxCell id="wYAVfRGM6Ns3bUwWbo9F-13" edge="1" parent="1" source="wYAVfRGM6Ns3bUwWbo9F-10" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="wYAVfRGM6Ns3bUwWbo9F-12" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="wYAVfRGM6Ns3bUwWbo9F-10" parent="1" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fixedSize=1;fillColor=#f8cecc;strokeColor=#b85450;rounded=0;fontStyle=1;labelBackgroundColor=none;rotation=0;" value="&lt;span style=&quot;font-weight: normal;&quot;&gt;Display Maze Map&lt;/span&gt;" vertex="1">
+          <mxGeometry height="40" width="160" x="345" y="340" as="geometry" />
+        </mxCell>
+        <mxCell id="wYAVfRGM6Ns3bUwWbo9F-20" edge="1" parent="1" source="wYAVfRGM6Ns3bUwWbo9F-12" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="wYAVfRGM6Ns3bUwWbo9F-19" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="wYAVfRGM6Ns3bUwWbo9F-12" parent="1" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fixedSize=1;fillColor=#f8cecc;strokeColor=#b85450;rounded=0;fontStyle=1;labelBackgroundColor=none;rotation=0;" value="&lt;span style=&quot;font-weight: normal;&quot;&gt;Player Chooses Path&lt;/span&gt;&lt;div&gt;&lt;span style=&quot;font-weight: normal;&quot;&gt;(A, B, C)&lt;/span&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="40" width="160" x="345" y="410" as="geometry" />
+        </mxCell>
+        <mxCell id="wYAVfRGM6Ns3bUwWbo9F-22" edge="1" parent="1" source="wYAVfRGM6Ns3bUwWbo9F-19" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="wYAVfRGM6Ns3bUwWbo9F-21">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="wYAVfRGM6Ns3bUwWbo9F-19" parent="1" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fixedSize=1;fillColor=#f8cecc;strokeColor=#b85450;rounded=0;fontStyle=1;labelBackgroundColor=none;rotation=0;" value="&lt;span style=&quot;font-weight: 400;&quot;&gt;Display Quiz Question&lt;/span&gt;&lt;div&gt;&lt;span style=&quot;font-weight: 400;&quot;&gt;Input Answer&lt;/span&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="40" width="160" x="345" y="480" as="geometry" />
+        </mxCell>
+        <mxCell id="wYAVfRGM6Ns3bUwWbo9F-24" edge="1" parent="1" source="wYAVfRGM6Ns3bUwWbo9F-21" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="wYAVfRGM6Ns3bUwWbo9F-23" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="wYAVfRGM6Ns3bUwWbo9F-26" edge="1" parent="1" source="wYAVfRGM6Ns3bUwWbo9F-21" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="wYAVfRGM6Ns3bUwWbo9F-25" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="wYAVfRGM6Ns3bUwWbo9F-21" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;rounded=0;fontStyle=1;labelBackgroundColor=none;rotation=0;" value="&lt;span style=&quot;font-weight: normal;&quot;&gt;Is answer correct?&lt;/span&gt;" vertex="1">
+          <mxGeometry height="100" width="100" x="375" y="550" as="geometry" />
+        </mxCell>
+        <mxCell id="wYAVfRGM6Ns3bUwWbo9F-23" parent="1" style="whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;rounded=0;fontStyle=1;labelBackgroundColor=none;" value="&lt;span style=&quot;font-weight: 400;&quot;&gt;Give EXP / Gold / Item by chance&lt;/span&gt;" vertex="1">
+          <mxGeometry height="40" width="120" x="225" y="680" as="geometry" />
+        </mxCell>
+        <mxCell id="wYAVfRGM6Ns3bUwWbo9F-25" parent="1" style="whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;rounded=0;fontStyle=1;labelBackgroundColor=none;" value="&lt;span style=&quot;font-weight: normal;&quot;&gt;Apply penalty&lt;/span&gt;" vertex="1">
+          <mxGeometry height="40" width="120" x="520" y="680" as="geometry" />
+        </mxCell>
       </root>
     </mxGraphModel>
   </diagram>
