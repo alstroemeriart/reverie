@@ -1,0 +1,1850 @@
+All the .py code present for the project proposal
+
+combatCalc.py
+
+import random
+
+def check_dodge(attacker, defender):
+    # Simple dodge formula
+    dodge_chance = defender.speed * 0.02  # 2% per speed point
+
+    if random.random() < dodge_chance:
+        return True
+    return False
+
+
+def check_critical(attacker):
+    if random.random() < attacker.crit_chance:
+        return True
+    return False
+
+def calculate_damage(attacker, defender):
+
+    # -----------------------------
+    # 1. Base Damage
+    # -----------------------------
+    base_damage = attacker.atk - defender.defense
+    base_damage = max(1, base_damage)
+
+    # -----------------------------
+    # 2. Streak Scaling (Soft Cap)
+    # -----------------------------
+    streak = getattr(attacker, "streak", 0)
+
+    # Soft scaling formula to prevent runaway damage
+    # Early streak feels strong, later streak scales slower
+    streak_multiplier = 1 + (streak * 0.05) / (1 + streak * 0.02)
+
+    # -----------------------------
+    # 3. Wisdom Scaling
+    # -----------------------------
+    wisdom = getattr(attacker, "wisdom", 0)
+    wisdom_bonus = 1 + (wisdom * 0.01)
+
+    # -----------------------------
+    # 4. Mastery Bonus (Future Expansion Ready)
+    # -----------------------------
+    mastery_bonus = 1.0
+    if hasattr(attacker, "mastery"):
+        total_mastery = sum(attacker.mastery.values())
+        mastery_bonus += total_mastery * 0.002  # small long-term scaling
+
+    # -----------------------------
+    # 5. Final Calculation
+    # -----------------------------
+    damage = base_damage * streak_multiplier * wisdom_bonus * mastery_bonus
+
+    base_damage = attacker.attack - defender.defense
+    if base_damage < 1:
+        base_damage = 1
+
+    # Critical hit?
+    is_crit = check_critical(attacker)
+    if is_crit:
+        base_damage *= attacker.crit_multiplier
+
+    return int(base_damage), is_crit
+
+combatSystem.py
+
+# Combat system and player actions
+import random, time
+from ui import typewriter
+from Spawns import Spawn
+
+# -----------------------------
+# Combat States
+# -----------------------------
+CONTINUE = "continue"
+ESCAPED = "escaped"
+WIN = "win"
+DEATH = "death"
+
+# -----------------------------
+# Combat mechanics
+# -----------------------------
+def check_dodge(attacker, defender):
+    """Return True if defender dodges the attack (includes streak bonus)."""
+    base_chance = defender.spd * 0.02
+
+    # Streak bonus
+    if hasattr(defender, "streak_dodge_bonus"):
+        base_chance += defender.streak_dodge_bonus()
+
+    # Vulnerable / other modifiers
+    if hasattr(defender, "dodge_modifier"):
+        base_chance += defender.dodge_modifier  # can be negative
+
+    return random.random() < base_chance
+
+def check_critical(attacker):
+    """Return True if attack is a critical hit."""
+    return random.random() < attacker.crit_chance
+
+def calculate_damage(attacker, defender, variance_low=-2, variance_high=2):
+    """Calculate damage, considering crits, variance, and streak buffs."""
+    raw = attacker.atk
+    # Add streak attack bonus if attacker is a MainCharacter
+    if hasattr(attacker, "streak_attack_bonus"):
+        raw += attacker.streak_attack_bonus()
+
+    variance = random.randint(variance_low, variance_high)
+    base = max(1, raw - defender.defense + variance)
+
+    is_crit = check_critical(attacker)
+    if is_crit:
+        base = int(base * attacker.crit_multiplier)
+
+    return base, is_crit
+
+
+# -----------------------------
+# Display stats function
+# -----------------------------
+def display_entity_stats(entity):
+    typewriter(f"\n--- {entity.name} ---")
+    typewriter(f"HP: {entity.hp}/{entity.max_hp}")
+    typewriter(f"ATK: {entity.atk} | DEF: {entity.defense} | SPD: {entity.spd}")
+    typewriter(f"CRIT: {int(entity.crit_chance*100)}%")
+    if hasattr(entity, "streak"):
+        typewriter(f"Streak: {entity.streak} (Longest: {entity.longest_streak})")
+    if hasattr(entity, "gold"):
+        typewriter(f"Gold: {entity.gold}")
+    if entity.status_effects:
+        typewriter("Status Effects:")
+        for effect in entity.status_effects:
+            typewriter(f" - {effect.name} ({effect.duration} turns)")
+    else:
+        typewriter("Status Effects: None")
+    time.sleep(0.5)
+
+
+# -----------------------------
+# Player turn
+# -----------------------------
+def player_turn(player, enemy, learning_engine):
+
+    while True:
+        typewriter(f"\n{player.name}'s turn! Choose your action:")
+        typewriter("1. Attack")
+        typewriter("2. Ask")
+        typewriter("3. Item")
+        typewriter("4. Run")
+
+        choice = input("> ").strip()
+
+        if choice == "1":
+            choice_attack(player, enemy)
+            return CONTINUE
+
+        elif choice == "2":
+            choice_ask(player, enemy, learning_engine)
+            return CONTINUE
+
+        elif choice == "3":
+            choice_item(player)
+            return CONTINUE
+
+        elif choice == "4":
+            return choice_run(player, enemy)
+
+        else:
+            typewriter("Invalid choice. Enter 1-4.")
+
+# -----------------------------
+# Player actions
+# -----------------------------
+def choice_attack(player, enemy):
+    typewriter(f"\n{player.name} attacks {enemy.name}!")
+    time.sleep(0.5)
+
+    if check_dodge(player, enemy):
+        typewriter(f"{enemy.name} dodged the attack!")
+        return True
+
+    dmg, is_crit = calculate_damage(player, enemy)
+    enemy.take_dmg(dmg)
+
+    if is_crit:
+        typewriter("CRITICAL HIT!")
+    typewriter(f"{player.name} deals {dmg} dmg!")
+    time.sleep(1)
+    return True
+
+def choice_ask(player, enemy, engine):
+    """Ask a random question from the learning engine."""
+    
+    question_data = engine.get_random_question()
+    if not question_data:
+        typewriter("No questions loaded.")
+        return True
+
+    q_type = question_data["type"]
+    question = question_data["question"]
+    answer = question_data["answer"]
+
+    # True/False
+    if q_type == "TF":
+        player_answer = input(f"{question} (True/False) > ").strip()
+        correct = player_answer.lower() == answer.lower()
+    # Multiple Choice
+    elif q_type == "MC":
+        options = question_data["options"]
+        typewriter(question)
+        for i, opt in enumerate(options, 1):
+            typewriter(f"{i}. {opt}")
+        try:
+            choice = int(input("> ").strip())
+            correct = options[choice-1] == answer
+        except:
+            correct = False
+    # Arithmetic or Identification
+    else:
+        player_answer = input(f"{question} > ").strip()
+        correct = player_answer.lower() == answer.lower()
+
+    if player.focus >= 100:
+        typewriter("Focus Ability Ready!")
+        typewriter("1. Massive Strike (2x dmg)")
+        typewriter("2. Heal 20% HP")
+        typewriter("3. Protect Streak")
+        ability = input("> ")
+
+        if ability == "1":
+            dmg, _ = calculate_damage(player, enemy, 1, 5)
+            dmg *= 2
+            enemy.take_dmg(dmg)
+            player.focus = 0
+            typewriter(f"Massive Strike deals {dmg} dmg!")
+            return True
+
+        elif ability == "2":
+            heal = int(player.max_hp * 0.2)
+            player.hp = min(player.max_hp, player.hp + heal)
+            player.focus = 0
+            typewriter(f"You healed {heal} HP!")
+            return True
+
+        elif ability == "3":
+            player.streak_protected = True
+            player.focus = 0
+            typewriter("Your next wrong answer will not reduce streak.")
+            return True
+
+    # Resolve damage or counterattack
+    if correct:
+        typewriter("Correct!")
+
+        # -----------------------------
+        # STREAK + FOCUS LOGIC
+        # -----------------------------
+        player.streak += 1
+        player.longest_streak = max(player.longest_streak, player.streak)
+
+        # Increase mastery (make sure q_type exists earlier in function)
+        if hasattr(player, "mastery") and q_type in player.mastery:
+            player.mastery[q_type] += 1
+
+        # Focus gain scales with wisdom
+        focus_gain = 10 + int(player.wisdom * 0.2)
+        player.focus = min(player.max_focus, player.focus + focus_gain)
+
+        typewriter(f"Streak: {player.streak}")
+        typewriter(f"Focus: {player.focus}/{player.max_focus}")
+
+        # -----------------------------
+        # DAMAGE PHASE
+        # -----------------------------
+        if not check_dodge(player, enemy):
+
+            dmg, is_crit = calculate_damage(player, enemy, 1, 5)
+
+            # Apply streak multiplier again if you want empowered strike feel
+            # (Remove this line if streak already handled fully inside calculate_damage)
+            dmg = int(dmg)
+
+            enemy.take_dmg(dmg)
+
+            if is_crit:
+                typewriter("CRITICAL HIT!")
+
+            typewriter(f"{enemy.name} takes {dmg} dmg!")
+
+        else:
+            typewriter(f"{enemy.name} dodged the empowered strike!")
+
+    else:
+        typewriter("Incorrect!")
+
+        # -----------------------------
+        # STREAK PENALTY
+        # -----------------------------
+        if player.streak_protected:
+            typewriter("Your streak was protected!")
+            player.streak_protected = False
+        else:
+            player.streak = player.streak // 2
+
+        # Focus penalty
+        player.focus = max(0, player.focus - 15)
+
+        typewriter(f"Streak reduced to {player.streak}")
+        typewriter(f"Focus: {player.focus}/{player.max_focus}")
+
+        # -----------------------------
+        # ENEMY PUNISHMENT ATTACK
+        # -----------------------------
+        if not check_dodge(enemy, player):
+
+            dmg, is_crit = calculate_damage(enemy, player, 0, 3)
+
+            player.take_dmg(dmg)
+
+            if is_crit:
+                typewriter("Enemy CRITICAL HIT!")
+
+            typewriter(f"You take {dmg} dmg!")
+
+        else:
+            typewriter("You dodged the punishment attack!")
+
+        time.sleep(1)
+        return True
+
+def choice_item(player):
+    if not player.inventory:
+        typewriter("You have no items!")
+        return True
+
+    typewriter("\nYour Inventory:")
+    for i, item in enumerate(player.inventory, 1):
+        typewriter(f"{i}. {item.name}")
+    typewriter(f"{len(player.inventory)+1}. Cancel")
+
+    try:
+        choice = int(input("Choose an item: ").strip())
+    except:
+        typewriter("Invalid choice.")
+        return True
+
+    if choice == len(player.inventory)+1:
+        typewriter("Cancelled.")
+        return True
+
+    if choice < 1 or choice > len(player.inventory):
+        typewriter("Invalid choice.")
+        return True
+
+    item = player.inventory.pop(choice-1)
+    typewriter(item.use(player))
+    return True
+
+def choice_run(player, enemy):
+    typewriter(f"\n{player.name} attempts to run away...")
+    time.sleep(1)
+
+    run_chance = 0.5 + (player.spd - enemy.spd) * 0.03
+    run_chance = min(0.9, max(0.1, run_chance))
+
+    if random.random() < run_chance:
+        typewriter("You successfully escaped, but at a cost!")
+        time.sleep(1)
+
+        # Penalty
+        lost_gold = min(player.gold, random.randint(5, 15))
+        player.gold -= lost_gold
+        player.streak = max(0, player.streak // 2)
+
+        # Apply temporary debuffs
+        from statusEffects import AttackDebuff, Vulnerable
+
+        attack_debuff = AttackDebuff(amount=5, duration=2)
+        attack_debuff.on_apply(player)
+        player.status_effects.append(attack_debuff)
+
+        vulnerable = Vulnerable(duration=2)
+        vulnerable.on_apply(player)
+        player.status_effects.append(vulnerable)
+
+        typewriter(f"You lost {lost_gold} Gold!")
+        typewriter("Your streak is halved!")
+        typewriter("You feel vulnerable and weaker for 2 turns!")
+        time.sleep(1)
+
+        return ESCAPED
+
+    else:
+        typewriter("Failed to escape!")
+        time.sleep(0.5)
+
+        # Enemy attacks immediately
+        if not check_dodge(enemy, player):
+            dmg, is_crit = calculate_damage(enemy, player, 0, 3)
+            player.take_dmg(dmg)
+            if is_crit:
+                typewriter("Enemy CRITICAL HIT!")
+            typewriter(f"{enemy.name} hits you for {dmg} dmg!")
+        else:
+            typewriter("You dodged the enemy's counterattack!")
+
+        time.sleep(1)
+        return CONTINUE
+
+# -----------------------------
+# Enemy turn
+# -----------------------------
+def enemy_turn(enemy, player):
+
+    typewriter(f"\n{enemy.name}'s turn...")
+    time.sleep(1)
+
+    if check_dodge(enemy, player):
+        typewriter(f"{player.name} dodged the attack!")
+        return CONTINUE
+
+    dmg, is_crit = calculate_damage(enemy, player, -1, 2)
+    player.take_dmg(dmg)
+
+    if is_crit:
+        typewriter("Enemy lands a CRITICAL HIT!")
+
+    typewriter(f"{enemy.name} attacks {player.name} for {dmg} dmg!")
+    time.sleep(1)
+
+    return CONTINUE
+
+# -----------------------------
+# Status effects
+# -----------------------------
+def process_status_effects(entity):
+    for effect in entity.status_effects[:]:
+        effect.on_turn_start(entity)
+        effect.on_turn_end(entity)
+        if effect.is_expired():
+            effect.on_expire(entity)
+            entity.status_effects.remove(effect)
+
+enemyPool.py
+
+import random
+from Spawns import Enemy
+
+# -------------------------
+# TIER 1 – Early Game
+# -------------------------
+TIER_1 = [
+    {"name": "Squid", "hp": 50, "atk": 10, "defense": 3, "speed": 2, "crit_chance": 0.05},
+    {"name": "Goblin", "hp": 40, "atk": 12, "defense": 2, "speed": 5, "crit_chance": 0.10},
+    {"name": "Wild Rat", "hp": 30, "atk": 8, "defense": 1, "speed": 6, "crit_chance": 0.08},
+    {"name": "Bandit", "hp": 45, "atk": 11, "defense": 3, "speed": 4, "crit_chance": 0.12}
+]
+
+# -------------------------
+# TIER 2 – Mid Game
+# -------------------------
+TIER_2 = [
+    {"name": "Stone Golem", "hp": 80, "atk": 8, "defense": 6, "speed": 1, "crit_chance": 0.03},
+    {"name": "Shadow Sprite", "hp": 35, "atk": 9, "defense": 2, "speed": 8, "crit_chance": 0.20},
+    {"name": "Orc Brute", "hp": 90, "atk": 14, "defense": 4, "speed": 2, "crit_chance": 0.07},
+    {"name": "Dark Mage", "hp": 55, "atk": 16, "defense": 3, "speed": 4, "crit_chance": 0.15}
+]
+
+# -------------------------
+# TIER 3 – Late Game
+# -------------------------
+TIER_3 = [
+    {"name": "Executioner", "hp": 120, "atk": 20, "defense": 5, "speed": 3, "crit_chance": 0.18},
+    {"name": "Phantom Assassin", "hp": 75, "atk": 22, "defense": 3, "speed": 9, "crit_chance": 0.25},
+    {"name": "Ancient Guardian", "hp": 160, "atk": 15, "defense": 10, "speed": 2, "crit_chance": 0.05}
+]
+
+# -------------------------
+# ELITE POOL
+# -------------------------
+ELITES = [
+    {"name": "Cursed Knight", "hp": 140, "atk": 24, "defense": 8, "speed": 4, "crit_chance": 0.20},
+    {"name": "Void Reaper", "hp": 110, "atk": 28, "defense": 5, "speed": 7, "crit_chance": 0.30}
+]
+
+# -------------------------
+# Generate Enemy
+# -------------------------
+def generate_random_enemy(tier=1, elite_chance=0.1):
+    """
+    tier: 1, 2, or 3
+    elite_chance: % chance to spawn elite
+    """
+
+    if random.random() < elite_chance:
+        template = random.choice(ELITES)
+    else:
+        if tier == 1:
+            template = random.choice(TIER_1)
+        elif tier == 2:
+            template = random.choice(TIER_2)
+        else:
+            template = random.choice(TIER_3)
+
+    return Enemy(
+        template["name"],
+        template["hp"],
+        template["atk"],
+        template["defense"],
+        template["speed"],
+        template["crit_chance"]
+    )
+
+items.py
+
+# items.py
+from statusEffects import StatusEffect
+from ui import typewriter
+import random
+
+class Item:
+    """Base class for items."""
+    name = "Generic Item"
+    price = 10  # default shop price
+
+    def use(self, user, target=None):
+        return f"{user.name} used {self.name}, but nothing happened."
+
+# =========================
+# HEALING ITEMS
+# =========================
+
+class HealingPotion(Item):
+    name = "Healing Potion"
+    price = 15
+
+    def __init__(self, heal_amount=20):
+        self.heal_amount = heal_amount
+
+    def use(self, user, target=None):
+        user.heal(self.heal_amount)
+        return f"{user.name} heals {self.heal_amount} HP!"
+
+class MegaHealingPotion(Item):
+    name = "Mega Healing Potion"
+    price = 35
+
+    def __init__(self, heal_amount=50):
+        self.heal_amount = heal_amount
+
+    def use(self, user, target=None):
+        user.heal(self.heal_amount)
+        return f"{user.name} restores {self.heal_amount} HP!"
+    
+# =========================
+# BUFF ITEMS
+# =========================
+
+class AttackBoost(Item):
+    name = "Attack Boost"
+    price = 25
+
+    def __init__(self, boost_amount=5, duration=3):
+        self.boost_amount = boost_amount
+        self.duration = duration
+
+    def use(self, user, target=None):
+        from statusEffects import AttackBuff
+        buff = AttackBuff(self.boost_amount, self.duration)
+        user.status_effects.append(buff)
+        buff.on_apply(user)
+        return f"ATK +{self.boost_amount} for {self.duration} turns!"
+
+class DefenseBoost(Item):
+    name = "Defense Boost"
+    price = 25
+
+    def __init__(self, boost_amount=5, duration=3):
+        self.boost_amount = boost_amount
+        self.duration = duration
+
+    def use(self, user, target=None):
+        from statusEffects import DefenseBuff
+        buff = DefenseBuff(self.boost_amount, self.duration)
+        user.status_effects.append(buff)
+        buff.on_apply(user)
+        return f"DEF +{self.boost_amount} for {self.duration} turns!"
+
+class SpeedBoost(Item):
+    name = "Speed Boost"
+    price = 30
+
+    def __init__(self, boost_amount=3, duration=3):
+        self.boost_amount = boost_amount
+        self.duration = duration
+
+    def use(self, user, target=None):
+        from statusEffects import SpeedBuff
+        buff = SpeedBuff(self.boost_amount, self.duration)
+        user.status_effects.append(buff)
+        buff.on_apply(user)
+        return f"SPD +{self.boost_amount} for {self.duration} turns!"
+
+# =========================
+# DEBUFF ITEMS (Require New Status Effects)
+# =========================
+
+class PoisonBomb(Item):
+    name = "Poison Bomb"
+    price = 30
+
+    def __init__(self, damage_per_turn=5, duration=4):
+        self.damage_per_turn = damage_per_turn
+        self.duration = duration
+
+    def use(self, user, target=None):
+        if target is None:
+            return "No target selected!"
+        from statusEffects import Poison
+        poison = Poison(self.damage_per_turn, self.duration)
+        target.status_effects.append(poison)
+        poison.on_apply(target)
+        return f"{target.name} is poisoned for {self.duration} turns!"
+
+class FreezeScroll(Item):
+    name = "Freeze Scroll"
+    price = 35
+
+    def __init__(self, duration=1):
+        self.duration = duration
+
+    def use(self, user, target=None):
+        if target is None:
+            return "No target selected!"
+        from statusEffects import Freeze
+        freeze = Freeze(self.duration)
+        target.status_effects.append(freeze)
+        freeze.on_apply(target)
+        return f"{target.name} is frozen and skips {self.duration} turn(s)!"
+
+class WeaknessCurse(Item):
+    name = "Weakness Curse"
+    price = 30
+
+    def __init__(self, reduction=5, duration=3):
+        self.reduction = reduction
+        self.duration = duration
+
+    def use(self, user, target=None):
+        if target is None:
+            return "No target selected!"
+        from statusEffects import AttackDebuff
+        debuff = AttackDebuff(self.reduction, self.duration)
+        target.status_effects.append(debuff)
+        debuff.on_apply(target)
+        return f"{target.name}'s ATK reduced by {self.reduction} for {self.duration} turns!"
+
+# =========================
+# SPECIAL ITEMS
+# =========================
+
+class HintPotion(Item):
+    name = "Hint Potion"
+    price = 20
+
+    def use(self, user, target=None):
+        user.hint_active = True
+        return "Your next question will be easier!"
+
+class DoubleGoldCharm(Item):
+    name = "Double Gold Charm"
+    price = 40
+
+    def __init__(self, duration=3):
+        self.duration = duration
+
+    def use(self, user, target=None):
+        from statusEffects import DoubleGold
+        buff = DoubleGold(self.duration)
+        user.status_effects.append(buff)
+        buff.on_apply(user)
+        return f"Gold rewards doubled for {self.duration} turns!"
+
+class RevivalStone(Item):
+    name = "Revival Stone"
+    price = 50
+
+    def use(self, user, target=None):
+        if user.hp <= 0:
+            user.hp = user.max_hp // 2
+            return f"{user.name} is revived with {user.hp} HP!"
+        return "Nothing happened."
+    
+AllItems = [
+    {"class": HealingPotion, "name": "Healing Potion", "rarity": "common"},
+    {"class": MegaHealingPotion, "name": "Mega Healing Potion", "rarity": "uncommon"},
+    {"class": AttackBoost, "name": "Attack Boost", "rarity": "uncommon"},
+    {"class": DefenseBoost, "name": "Defense Boost", "rarity": "uncommon"},
+    {"class": SpeedBoost, "name": "Speed Boost", "rarity": "uncommon"},
+    {"class": PoisonBomb, "name": "Poison Bomb", "rarity": "rare"},
+    {"class": FreezeScroll, "name": "Freeze Scroll", "rarity": "rare"},
+    {"class": WeaknessCurse, "name": "Weakness Curse", "rarity": "rare"},
+    {"class": HintPotion, "name": "Hint Potion", "rarity": "common"},
+    {"class": DoubleGoldCharm, "name": "Double Gold Charm", "rarity": "rare"},
+    {"class": RevivalStone, "name": "Revival Stone", "rarity": "legendary"},
+]
+
+learningEngine.py
+
+import random, json
+import time
+from Spawns import MainCharacter, Enemy
+from items import AllItems
+from ui import typewriter
+
+
+class LearningEngine:
+    def __init__(self):
+        self.questions = []
+
+    def load_notes(self, filepath, qtype="TF"):
+        """
+        Load questions from a notes file.
+        - TF: True/False format, each line "Statement = True/False"
+        - MC: Multiple Choice, JSON format per line: {"question": "...", "options": ["A","B"], "answer": "B"}
+        - AR: Arithmetic or ID, "Question = Answer"
+        """
+        try:
+            with open(filepath, "r", encoding="utf-8") as file:
+                lines = file.readlines()
+
+            for line in lines:
+                line = line.strip()
+                if not line:
+                    continue
+
+                if qtype == "TF" or qtype == "AR":
+                    if "=" not in line:
+                        continue
+                    statement, answer = line.split("=")
+                    self.questions.append({
+                        "type": qtype,
+                        "question": statement.strip(),
+                        "answer": answer.strip()
+                    })
+
+                elif qtype == "MC":
+                    # Expecting JSON string per line
+                    try:
+                        data = json.loads(line)
+                        if "question" in data and "options" in data and "answer" in data:
+                            data["type"] = "MC"
+                            self.questions.append(data)
+                    except json.JSONDecodeError:
+                        continue
+
+        except FileNotFoundError:
+            typewriter(f"Notes file not found: {filepath}")
+
+    def get_random_question(self):
+        if not self.questions:
+            return None
+        return random.choice(self.questions)
+    
+def random_item_pool(num_rewards=1):
+    """Select a random reward from the item pool with rarity weighting"""
+    rewards = []
+
+    for _ in range(num_rewards):
+        drop = random.randint(0, 100)
+        rarity = "common"  # default value
+        if drop < 30:
+            rarity = "common"
+        elif drop < 60:
+            rarity = "uncommon"
+        elif drop < 95:
+            rarity = "rare"
+        else:
+            rarity = "legendary"
+
+        possibilities = [i for i in AllItems if i["rarity"] == rarity]
+        if possibilities:
+            item_data = random.choice(possibilities)
+            rewards.append(item_data["class"]())
+
+    return rewards
+
+def quiz_trial(player, engine):
+    """
+    Dynamic choice-driven trial puzzle with visual map and delays:
+    - Player chooses paths (2-3 options each move)
+    - Each move requires answering a question
+    - Correct answer: base + optional rewards
+    - Incorrect: streak penalty + other effects
+    - Random chance of chest or trap
+    - Visual ASCII map updates with each move
+    """
+    typewriter("\n=== Trial Exploration Challenge ===")
+    time.sleep(1)
+    typewriter("\nYou enter a mysterious labyrinth. Choose your paths wisely!")
+    time.sleep(1)
+
+    base_rewards = {"exp": 10, "gold": 5}
+    accumulated_rewards = {"exp": 0, "gold": 0, "items": []}
+    moves = 0
+    in_maze = True
+    maze_map = []  # keeps track of paths taken for visual map
+
+    while in_maze:
+        moves += 1
+
+        # Visual Map
+        typewriter("\nMaze Map: " + " > ".join(maze_map) if maze_map else "Trial Map: Start")
+        time.sleep(0.5)
+
+        # Present 2-3 path options
+        num_paths = random.choice([2, 3])
+        paths = [chr(65 + i) for i in range(num_paths)]  # A, B, C
+        typewriter(f"\nYou are at a crossroads! Choose your path: {', '.join(paths)}")
+        choice = input("> ").strip().upper()
+
+        if choice not in paths:
+            typewriter("Invalid path! You hesitate and lose a turn.")
+            time.sleep(1)
+            continue
+
+        # Update visual map
+        maze_map.append(choice)
+        typewriter(f"You chose path {choice}...")
+        time.sleep(1)
+
+        # Ask a random question for this move
+        q_data = engine.get_random_question()
+        if q_data is None:
+            typewriter("No questions available! Skipping this move...")
+            time.sleep(1)
+            continue
+
+        typewriter(f"\nQuestion: {q_data['question']}")
+        player_answer = input("> ").strip().lower()
+        correct_answer = q_data["answer"].strip().lower()
+        time.sleep(0.5)
+
+        # Reward / Punishment Logic
+        if player_answer == correct_answer:
+            typewriter("Correct! You proceed safely.")
+            time.sleep(0.5)
+
+            # Base reward
+            accumulated_rewards["exp"] += base_rewards["exp"]
+            accumulated_rewards["gold"] += base_rewards["gold"]
+
+            # Optional bonus rewards
+            bonus_options = ["gold", "exp", "item", "none"]
+            bonus_choices = random.sample(bonus_options, random.choice([1, 2]))
+            for bonus in bonus_choices:
+                if bonus == "gold":
+                    bonus_amount = random.randint(3, 10)
+                    accumulated_rewards["gold"] += bonus_amount
+                    typewriter(f"You found +{bonus_amount} gold!")
+                    time.sleep(0.5)
+                elif bonus == "exp":
+                    bonus_amount = random.randint(5, 15)
+                    accumulated_rewards["exp"] += bonus_amount
+                    typewriter(f"You gained +{bonus_amount} experience!")
+                    time.sleep(0.5)
+                elif bonus == "item":
+                    items = random_item_pool(num_rewards=1)
+                    accumulated_rewards["items"].extend(items)
+                    for item in items:
+                        typewriter(f"You discovered an item: {item.name}!")
+                        time.sleep(0.5)
+
+        else:
+            typewriter(f"Incorrect! The correct answer was: {q_data['answer']}")
+            time.sleep(0.5)
+            player.streak = max(0, player.streak - 1)
+            typewriter("Your streak decreased!")
+            time.sleep(0.5)
+
+            penalty_chance = random.random()
+            if penalty_chance < 0.3:
+                lost_gold = min(accumulated_rewards["gold"], random.randint(2, 8))
+                accumulated_rewards["gold"] -= lost_gold
+                typewriter(f"You triggered a trap and lost {lost_gold} gold!")
+                time.sleep(1)
+
+        # Random chance: chest or trap
+        special_event = random.random()
+        if special_event < 0.2:
+            chest_gold = random.randint(10, 25)
+            chest_exp = random.randint(10, 25)
+            accumulated_rewards["gold"] += chest_gold
+            accumulated_rewards["exp"] += chest_exp
+            typewriter(f"\nYou found a chest! +{chest_gold} gold, +{chest_exp} exp!")
+            time.sleep(1)
+            if random.random() < 0.2:  # 20% chance for permabuff
+                from statusEffects import DoubleGold
+                player.status_effects.append(DoubleGold(duration=5))
+                typewriter("Lucky bonus! You received Double Gold buff for 5 turns!")
+                time.sleep(1)
+        elif special_event < 0.25:
+            typewriter("\nYou stumble into a trap! Answer correctly to escape.")
+            time.sleep(0.5)
+            trap_q = engine.get_random_question()
+            trap_answer = input(f"{trap_q['question']} > ").strip().lower()
+            if trap_answer != trap_q["answer"].strip().lower():
+                typewriter("Wrong! You are ejected from the trial!")
+                in_maze = False
+                break
+            else:
+                typewriter("Correct! You escape the trap safely.")
+                time.sleep(0.5)
+
+        # Exit after 5 moves or randomly continue
+        if moves >= 5 and random.random() < 0.3:
+            typewriter("\nYou find the exit of the maze. Trial completed!")
+            in_maze = False
+            break
+
+    # Apply accumulated rewards
+    player.gold += accumulated_rewards["gold"]
+    player.exp += accumulated_rewards["exp"]
+    for item in accumulated_rewards["items"]:
+        player.inventory.append(item)
+
+    typewriter(f"\nTrial Rewards Summary:")
+    typewriter(f"- Gold: {accumulated_rewards['gold']}")
+    typewriter(f"- Exp: {accumulated_rewards['exp']}")
+    if accumulated_rewards["items"]:
+        typewriter("- Items:")
+        for item in accumulated_rewards["items"]:
+            typewriter(f"  - {item.name}")
+
+    time.sleep(1)
+
+main.py
+
+# Main game loop and character creation
+import time, os, random
+from Spawns import MainCharacter, Enemy, Spawn
+from items import HealingPotion, AttackBoost, HintPotion
+from combatSystem import (
+    player_turn,
+    enemy_turn,
+    process_status_effects,
+    display_entity_stats,
+    ESCAPED, CONTINUE, WIN, DEATH
+)
+from ui import title_screen, game_over_screen, typewriter, clear_screen
+from combatCalc import calculate_damage, check_dodge, check_critical
+from enemyPool import generate_random_enemy
+from learningEngine import LearningEngine, quiz_trial
+from shop import shop
+
+engine = LearningEngine()
+
+engine = LearningEngine()
+engine.load_notes(r"C:\Users\Larry Relativo\OneDrive\Desktop\School\Random Projects\Project Proposal\Core Game\notes\TorF.txt", qtype="TF")
+engine.load_notes(r"C:\Users\Larry Relativo\OneDrive\Desktop\School\Random Projects\Project Proposal\Core Game\notes\MCQ.txt", qtype="MC")
+engine.load_notes(r"C:\Users\Larry Relativo\OneDrive\Desktop\School\Random Projects\Project Proposal\Core Game\notes\Math.txt", qtype="AR")
+engine.load_notes(r"C:\Users\Larry Relativo\OneDrive\Desktop\School\Random Projects\Project Proposal\Core Game\notes\Identify", qtype="ID")
+
+class PathNode:
+    def __init__(self, node_type, tier=1):
+        """
+        node_type:
+            "battle"
+            "elite"
+            "shop"
+            "maze"
+            "rest"
+        """
+        self.node_type = node_type
+        self.tier = tier
+
+    def describe(self):
+        descriptions = {
+            "battle": "A hostile presence lurks ahead...",
+            "elite": "A powerful elite enemy blocks your path.",
+            "shop": "A wandering merchant appears.",
+            "maze": "A mysterious maze entrance glows faintly.",
+            "rest": "A quiet sanctuary for recovery."
+        }
+        return descriptions.get(self.node_type, "An unknown path.")
+
+def generate_next_nodes(current_tier):
+    node_count = random.choice([2, 3])
+
+    nodes = []
+
+    for _ in range(node_count):
+        node_type = random.choices(
+            ["battle", "elite", "shop", "maze", "rest"],
+            weights=[50, 10, 15, 15, 10],
+            k=1
+        )[0]
+
+        tier = current_tier
+
+        if node_type == "elite":
+            tier += 1
+
+        nodes.append(PathNode(node_type, tier=tier))
+
+    return nodes
+
+def choose_next_path(current_tier):
+    nodes = generate_next_nodes(current_tier)
+
+    typewriter("\nChoose your next destination:")
+    time.sleep(0.5)
+
+    for i, node in enumerate(nodes, 1):
+        typewriter(f"{i}. {node.describe()} ({node.node_type.upper()})")
+        time.sleep(0.3)
+
+    while True:
+        choice = input("> ").strip()
+        if choice.isdigit():
+            choice = int(choice)
+            if 1 <= choice <= len(nodes):
+                return nodes[choice - 1]
+
+        typewriter("Invalid choice. Select a valid number.")
+
+def create_character():
+    typewriter("\n=== Character Creation ===")
+
+    name = input("Enter your character name: ").strip()
+
+    typewriter("\nChoose a GOL Class:")
+    typewriter("1. Berserker (Glass Cannon) - High ATK, Low DEF")
+    typewriter("2. Duelist (Speedy Rogue) - High SPD, High CRIT, Low ATK")
+    typewriter("3. Sentinel (Average Sustain) - High HP, High DEF, Low SPD")
+    typewriter("4. Arcanist (Learning Focus) - High WIS, High Crit)")
+    typewriter("5. Gambler (High Risk/Reward) - Variance in all stats, Mismatch CRIT")
+    typewriter("6. Custom Build - Distribute your own stat points")
+
+    choice = input("> ").strip()
+    # (name, hp, atk, def, spd, wisdom, crit_chance, crit_multiplier)
+    if choice == "1":
+        return MainCharacter(name, 30, 15, 5, 10, 5, 0.3, 2.5) #berserker
+
+    elif choice == "2":
+        return MainCharacter(name, 50, 5, 10, 10, 5, 0.8, 2.5) #duelist
+
+    elif choice == "3":
+        return MainCharacter(name, 80, 5, 15, 5, 5, 0.3, 1.5) #sentinel
+    
+    elif choice == "4":
+        return MainCharacter(name, 40, 5, 5, 7, 30, 1, 3.0) #arcanist
+    
+    elif choice == "5":
+        return MainCharacter(name, random.randint(30, 100), random.randint(5, 40), random.randint(2, 15), random.randint(3, 20), random.randint(5, 25), random.randint(0, 1), random.uniform(0.5, 5)) #gambler
+
+    elif choice == "6":
+        return custom_build(name) # custom build
+    
+    elif choice == "143":
+        typewriter("Welcome home, Rynier. Let's get you ready for testing.")
+        return MainCharacter(name, 999, 999, 999, 999, 999, 1, 10) # testing god mode
+
+    else:
+        typewriter("Invalid choice. Defaulting to Berserker.")
+        return MainCharacter(name, 30, 25, 2, 10, 5, 0.3, 2.5) # default berserker
+    
+def custom_build(name):
+    typewriter("\nYou have 100 stat points to distribute.")
+    points = 100
+
+    def allocate(stat_name):
+        nonlocal points
+        while True:
+            value = input(f"{stat_name} (Remaining points: {points}): ")
+            try:
+                value = int(value)
+                if 0 <= value <= points:
+                    points -= value
+                    return value
+            except:
+                pass
+            typewriter("Invalid amount.")
+
+    max_hp = 20 + allocate("HP")
+    atk = 5 + allocate("ATK")
+    defense = 5 + allocate("DEF")
+    spd = 5 + allocate("SPD")
+    wisdom = 5 + allocate("WISDOM")
+    crit_chance = 0 + allocate("CRIT_CHANCE") / 100
+    crit_multiplier = 0 + allocate("CRIT_MULTIPLIER") / 10
+
+    return MainCharacter(name, max_hp, atk, defense, spd, wisdom, crit_chance, crit_multiplier)
+
+def start_combat(player, learning_engine, tier):
+    """Full combat loop handling turns, status effects, escape, and victory."""
+
+    enemy = generate_random_enemy(tier=tier)
+    typewriter(f"\nA wild {enemy.name} appears!")
+    time.sleep(1)
+
+    combat_active = True
+
+    while combat_active:
+
+        # --- Display Stats ---
+        display_entity_stats(player)
+        display_entity_stats(enemy)
+
+        # --- Process Player Turn ---
+        result = player_turn(player, enemy, learning_engine)
+
+        if result == ESCAPED:
+            typewriter("You successfully escaped the battle!")
+            time.sleep(1)
+            return ESCAPED
+
+        if enemy.hp <= 0:
+            typewriter(f"{enemy.name} defeated!")
+            time.sleep(1)
+            return WIN
+
+        if player.hp <= 0:
+            typewriter("You were defeated...")
+            time.sleep(1)
+            return DEATH
+
+        # --- Process Status Effects (player before enemy) ---
+        process_status_effects(player)
+
+        if enemy.hp <= 0:
+            typewriter(f"{enemy.name} defeated!")
+            time.sleep(1)
+            return WIN
+
+        if player.hp <= 0:
+            typewriter("You were defeated...")
+            time.sleep(1)
+            return DEATH
+
+        # --- Enemy Turn ---
+        enemy_turn(enemy, player)
+
+        # --- Process Status Effects (enemy after action) ---
+        process_status_effects(enemy)
+
+        if player.hp <= 0:
+            typewriter("You were defeated...")
+            time.sleep(1)
+            return DEATH
+
+        if enemy.hp <= 0:
+            typewriter(f"{enemy.name} defeated!")
+            time.sleep(1)
+            return WIN
+
+def main_game():
+    """Runs a full RPG loop until player dies or escapes."""
+    player = create_character()
+    current_tier = 1
+    battles_won = 0
+    nodes_cleared = 0
+
+    # Starting gold and stats
+    player.gold = 50
+    player.exp = 0
+    player.streak = 0  
+
+    typewriter("=" * 60)
+    typewriter("\nWelcome to the Game-on Learning demo!")
+    typewriter("Use knowledge and strategy to defeat enemies and gain rewards.")
+    typewriter("Gold earned can be used in the shop to buy items.")
+    typewriter("=" * 60)
+    time.sleep(2)
+    typewriter("Loading Combat...")
+    time.sleep(1)
+    clear_screen()
+
+    typewriter("=== ROGUELITE RUN STARTED ===")
+    time.sleep(1)
+
+    run_active = True
+    while run_active and player.is_alive():
+
+        nodes_cleared += 1
+
+        # -------------------------
+        # Determine next node
+        # -------------------------
+        if nodes_cleared == 1:
+            next_node = PathNode("battle", tier=current_tier)
+        elif nodes_cleared == 2:
+            next_node = PathNode(random.choice(["battle", "rest"]), tier=current_tier)
+        else:
+            next_node = choose_next_path(current_tier)
+
+        typewriter(f"\nYou proceed toward: {next_node.node_type.upper()}")
+        time.sleep(0.5)
+
+        # -------------------------
+        # Handle Node Types
+        # -------------------------
+        # Battle / Elite
+        if next_node.node_type in ["battle", "elite"]:
+            tier = next_node.tier + (1 if next_node.node_type == "elite" else 0)
+            result = start_combat(player, engine, tier)
+
+            if result == "DEAD":
+                # Player died, end run
+                typewriter("\n=== GAME OVER ===")
+                game_over_screen()
+                return  # exit run immediately
+
+            elif result == "Escaped":
+                typewriter("You escaped the battle — no rewards gained!")
+                # Optional: apply a small penalty for running
+                lost_gold = min(player.gold, random.randint(5, 15))
+                player.gold -= lost_gold
+                typewriter(f"Running costs you {lost_gold} gold!")
+                time.sleep(1)
+                continue  # move to next node without rewards
+
+            else:
+                # Victory: give rewards
+                battles_won += 1
+                if next_node.node_type == "battle":
+                    xp_reward = 20 + (current_tier * 5)
+                    gold_reward = 15 + (current_tier * 5)
+                else:  # elite
+                    xp_reward = 50 + (current_tier * 10)
+                    gold_reward = 40 + (current_tier * 10)
+                    player.max_hp += 5
+                    typewriter("Permanent +5 Max HP!")
+
+                player.exp += xp_reward
+                player.gold += gold_reward
+                typewriter(f"You gained {xp_reward} EXP and {gold_reward} Gold!")
+                time.sleep(1)
+
+        # Shop
+        elif next_node.node_type == "shop":
+            shop(player)
+
+        # Maze / Quiz Trial
+        elif next_node.node_type == "maze":
+            quiz_trial(player, engine)
+
+        # Rest
+        elif next_node.node_type == "rest":
+            heal_amount = int(player.max_hp * 0.3)
+            player.hp = min(player.max_hp, player.hp + heal_amount)
+            typewriter(f"You rest and recover {heal_amount} HP.")
+            time.sleep(1)
+
+        # -------------------------
+        # Difficulty scaling & passive recovery
+        # -------------------------
+        if nodes_cleared % 5 == 0:
+            current_tier = min(current_tier + 1, 5)
+            typewriter("The world grows more dangerous...")
+            time.sleep(1)
+
+        player.hp = min(player.max_hp, player.hp + int(player.max_hp * 0.05))
+        typewriter(f"Current HP: {player.hp}/{player.max_hp}")
+        typewriter(f"Gold: {player.gold} | EXP: {player.exp}")
+        time.sleep(0.5)
+
+    # -------------------------
+    # Run Summary
+    # -------------------------
+    clear_screen()
+    typewriter("\n=== RUN ENDED ===")
+    typewriter(f"Battles Won: {battles_won}")
+    typewriter(f"Nodes Cleared: {nodes_cleared}")
+    typewriter(f"Final Gold: {player.gold}")
+    time.sleep(2)
+    typewriter("\nReturning to main menu...")
+    time.sleep(1)
+
+if __name__ == "__main__":
+    while True:
+        start = title_screen()
+        if start:
+            main_game()  # run combat
+            restart = game_over_screen()
+            if not restart:
+                break
+        else:
+            break  # exit cleanly
+
+shop.py
+
+# shop.py
+from ui import typewriter
+from items import (
+    HealingPotion, AttackBoost, HintPotion,
+    DefenseBoost, MegaHealingPotion, SpeedBoost,
+    PoisonBomb, FreezeScroll, WeaknessCurse,
+    DoubleGoldCharm, RevivalStone
+)
+import random, time
+
+# Full item pool (can expand further later)
+ITEM_POOL = [
+    HealingPotion,
+    AttackBoost,
+    HintPotion,
+    DefenseBoost,
+    MegaHealingPotion, 
+    SpeedBoost,
+    PoisonBomb,
+    FreezeScroll,
+    WeaknessCurse,
+    DoubleGoldCharm,
+    RevivalStone
+]
+
+def shop(player):
+    """Roguelite shop with 5 random items per visit."""
+    while True:
+        typewriter("\n=== Welcome to the Shop ===")
+        typewriter(f"Gold: {player.gold}")
+        time.sleep(0.5)
+
+        # Randomly select 5 items to sell this visit
+        items_for_sale = random.sample(ITEM_POOL, k=min(5, len(ITEM_POOL)))
+        item_slots = []
+
+        for i, item_class in enumerate(items_for_sale, 1):
+            # Random base price for rarity scaling
+            base_price = random.randint(30, 120)
+            final_price = player.shop_discount(base_price)
+            item_instance = item_class()  # instantiate
+            item_slots.append((item_instance, final_price))
+            typewriter(f"{i}. {item_instance.name} - {final_price} gold")
+            time.sleep(0.2)
+
+        typewriter(f"{len(item_slots)+1}. Leave Shop")
+
+        choice = input("> ").strip()
+        try:
+            choice = int(choice)
+        except:
+            typewriter("Invalid choice.")
+            continue
+
+        if choice == len(item_slots)+1:
+            typewriter("Leaving shop...")
+            return  # exit shop
+
+        if 1 <= choice <= len(item_slots):
+            item, price = item_slots[choice-1]
+            final_price = player.shop_discount(price)
+
+            if player.gold >= final_price:
+                player.gold -= final_price
+                player.inventory.append(item)
+                typewriter(f"You bought {item.name}!")
+                typewriter(f"Gold remaining: {player.gold}")
+                time.sleep(0.5)
+            else:
+                typewriter("Not enough gold!")
+                time.sleep(0.5)
+        else:
+            typewriter("Invalid choice.")
+            time.sleep(0.5)
+
+spawns.py
+
+import random
+from dataclasses import dataclass, field
+from typing import List
+from statusEffects import StatusEffect
+from items import HealingPotion, AttackBoost, HintPotion
+
+# -----------------------------
+# Base Spawn Class
+# -----------------------------
+@dataclass
+class Spawn:
+    name: str
+    max_hp: int
+    atk: int
+    defense: int
+    spd: int
+    gold: int
+
+    hp: int = field(init=False)
+    status_effects: List["StatusEffect"] = field(default_factory=list)
+
+    def __post_init__(self):
+        self.hp = self.max_hp
+
+    def take_dmg(self, dmg: int):
+        """Apply raw damage (defense already handled in calculate_damage)."""
+        self.hp = max(0, self.hp - dmg)
+
+
+    def is_alive(self) -> bool:
+        return self.hp > 0
+
+    def heal(self, amount: int):
+        self.hp = min(self.max_hp, self.hp + amount)
+
+
+# -----------------------------
+# Player Character
+# -----------------------------
+class MainCharacter(Spawn):
+    def __init__(self, name, max_hp, atk, defense, spd, wisdom, crit_chance, crit_multiplier):
+        super().__init__(name, max_hp, atk, defense, spd, 0)
+        self.wisdom = wisdom
+        self.crit_chance = crit_chance
+        self.crit_multiplier = crit_multiplier
+
+        # Progression
+        self.lvl = 1
+        self.exp = 0
+        self.xp_to_next = 100
+
+        # Inventory
+        self.inventory = [HealingPotion(), AttackBoost(), HintPotion()]
+        self.gold = 10 
+
+        # Combat systems
+        self.streak = 0
+        self.longest_streak = 0
+        self.focus = 0
+        self.max_focus = 100
+        self.streak_protected = False
+
+        # Mastery tracking
+        self.mastery = {"TF": 0, "MC": 0, "AR": 0, "ID": 0}
+
+        # Hint system
+        self.hint_active = False
+
+        self.status_effects = []
+        self.shield = 0
+        self.is_stunned = False
+        self.gold_multiplier = 1.0
+        self.has_streak_guard = False
+
+    # --- RPG Buffs from Streak ---
+    def streak_attack_bonus(self):
+        """Extra attack power based on streak."""
+        return int(self.atk * (0.01 * self.streak))
+
+    def streak_dodge_bonus(self):
+        """Extra dodge chance based on streak."""
+        return min(0.005 * self.streak, 0.25)  # cap at +25%
+
+    def shop_discount(self, base_price):
+        """Discount in shops based on streak."""
+        discount = min(0.01 * (self.streak // 5), 0.25)  # 1% per 5 streak, max 25%
+        return int(base_price * (1 - discount))
+
+    def puzzle_bonus(self):
+        """Bonus chance to solve puzzles based on streak."""
+        return min(0.02 * self.streak, 0.30)  # up to +30% success chance
+
+    # --- Progression ---
+    def is_alive(self):
+        return self.hp > 0
+
+    def gain_xp(self, amount):
+        self.exp += amount
+        print(f"Gained {amount} XP!")
+        while self.exp >= self.xp_to_next:
+            self.level_up()
+
+    def level_up(self):
+        self.exp -= self.xp_to_next
+        self.lvl += 1
+        self.xp_to_next = int(self.xp_to_next * 1.3)
+
+        # Stat scaling
+        self.max_hp += 10
+        self.atk += 2
+        self.defense += 1
+        self.spd += 1
+        self.hp = self.max_hp
+
+        print(f"\nLEVEL UP! You are now level {self.lvl}!")
+        print(f"Stats increased! HP: {self.max_hp}, ATK: {self.atk}, DEF: {self.defense}, SPD: {self.spd}")
+
+# -----------------------------
+# Enemy
+# -----------------------------
+class Enemy(Spawn):
+    def __init__(self, name, hp, atk, defense, spd, crit_chance):
+        super().__init__(name, hp, atk, defense, spd, gold=0)
+        self.crit_chance = crit_chance
+        self.crit_multiplier = 1.5
+
+statusEffects.py
+
+from ui import typewriter
+
+class StatusEffect:
+    def __init__(self, name, duration):
+        self.name = name
+        self.duration = duration
+
+    # Called once when applied
+    def on_apply(self, entity):
+        pass
+
+    # Called at start of entity's turn
+    def on_turn_start(self, entity):
+        pass
+
+    # Called at end of entity's turn
+    def on_turn_end(self, entity):
+        self.duration -= 1
+
+    # Called once when effect expires
+    def on_expire(self, entity):
+        pass
+
+    def is_expired(self):
+        return self.duration <= 0
+
+
+# ==========================================
+# ATTACK BUFF
+# ==========================================
+class AttackBuff(StatusEffect):
+    def __init__(self, amount, duration):
+        super().__init__("Attack Buff", duration)
+        self.amount = amount
+
+    def on_apply(self, entity):
+        entity.atk += self.amount
+        typewriter(f"{entity.name}'s ATK increased by {self.amount}!")
+
+    def on_expire(self, entity):
+        entity.atk -= self.amount
+        typewriter(f"{entity.name}'s Attack Buff has worn off!")
+
+
+# ==========================================
+# DEFENSE BUFF
+# ==========================================
+class DefenseBuff(StatusEffect):
+    def __init__(self, amount, duration):
+        super().__init__("Defense Buff", duration)
+        self.amount = amount
+
+    def on_apply(self, entity):
+        entity.defense += self.amount
+        typewriter(f"{entity.name}'s DEF increased by {self.amount}!")
+
+    def on_expire(self, entity):
+        entity.defense -= self.amount
+        typewriter(f"{entity.name}'s Defense Buff has worn off!")
+
+
+# ==========================================
+# POISON (Damage Over Time)
+# ==========================================
+class Poison(StatusEffect):
+    def __init__(self, damage, duration):
+        super().__init__("Poison", duration)
+        self.damage = damage
+
+    def on_turn_start(self, entity):
+        entity.take_dmg(self.damage)
+        typewriter(f"{entity.name} takes {self.damage} poison damage!")
+
+    def on_expire(self, entity):
+        typewriter(f"{entity.name} is no longer poisoned!")
+
+
+# ==========================================
+# BURN (Damage Over Time)
+# ==========================================
+class Burn(StatusEffect):
+    def __init__(self, damage, duration):
+        super().__init__("Burn", duration)
+        self.damage = damage
+
+    def on_turn_start(self, entity):
+        entity.take_dmg(self.damage)
+        typewriter(f"{entity.name} takes {self.damage} burn damage!")
+
+    def on_expire(self, entity):
+        typewriter(f"{entity.name} is no longer burning!")
+
+
+# ==========================================
+# REGENERATION (Heal Over Time)
+# ==========================================
+class Regen(StatusEffect):
+    def __init__(self, amount, duration):
+        super().__init__("Regeneration", duration)
+        self.amount = amount
+
+    def on_turn_start(self, entity):
+        entity.hp = min(entity.max_hp, entity.hp + self.amount)
+        typewriter(f"{entity.name} regenerates {self.amount} HP!")
+
+    def on_expire(self, entity):
+        typewriter(f"{entity.name}'s regeneration faded.")
+
+
+# ==========================================
+# SHIELD (Absorbs Damage)
+# ==========================================
+class Shield(StatusEffect):
+    def __init__(self, amount, duration):
+        super().__init__("Shield", duration)
+        self.amount = amount
+
+    def on_apply(self, entity):
+        entity.shield += self.amount
+        typewriter(f"{entity.name} gains a shield of {self.amount}!")
+
+    def on_expire(self, entity):
+        entity.shield = max(0, entity.shield - self.amount)
+        typewriter(f"{entity.name}'s shield expired.")
+
+
+# ==========================================
+# STUN (Skip Turn)
+# ==========================================
+class Stun(StatusEffect):
+    def __init__(self, duration):
+        super().__init__("Stun", duration)
+
+    def on_apply(self, entity):
+        entity.is_stunned = True
+
+    def on_expire(self, entity):
+        entity.is_stunned = False
+        typewriter(f"{entity.name} is no longer stunned!")
+
+
+# ==========================================
+# GOLD BOOST (Utility)
+# ==========================================
+class GoldBoost(StatusEffect):
+    def __init__(self, multiplier, duration):
+        super().__init__("Gold Boost", duration)
+        self.multiplier = multiplier
+
+    def on_apply(self, entity):
+        entity.gold_multiplier *= self.multiplier
+        typewriter(f"{entity.name}'s gold gain increased!")
+
+    def on_expire(self, entity):
+        entity.gold_multiplier /= self.multiplier
+        typewriter("Gold boost has expired.")
+
+
+# ==========================================
+# STREAK GUARD (One-Time Protection)
+# ==========================================
+class StreakGuard(StatusEffect):
+    def __init__(self):
+        super().__init__("Streak Guard", 1)
+
+    def on_apply(self, entity):
+        entity.has_streak_guard = True
+        typewriter("Your next streak loss will be prevented!")
+
+    def on_expire(self, entity):
+        entity.has_streak_guard = False
+        typewriter("Streak Guard has been used.")
+
+# ==========================================
+# SPEED BUFF (Turn Priority / Dodge / Future Scaling)
+# ==========================================
+class SpeedBuff(StatusEffect):
+    def __init__(self, amount, duration):
+        super().__init__("Speed Buff", duration)
+        self.amount = amount
+
+    def on_apply(self, entity):
+        entity.speed += self.amount
+        typewriter(f"{entity.name}'s Speed increased by {self.amount}!")
+
+    def on_expire(self, entity):
+        entity.speed -= self.amount
+        typewriter(f"{entity.name}'s Speed Buff has worn off!")
+
+
+# ==========================================
+# FREEZE (Stronger Stun Variant)
+# Skips turn AND reduces defense temporarily
+# ==========================================
+class Freeze(StatusEffect):
+    def __init__(self, duration, defense_reduction=2):
+        super().__init__("Freeze", duration)
+        self.defense_reduction = defense_reduction
+
+    def on_apply(self, entity):
+        entity.is_stunned = True
+        entity.defense -= self.defense_reduction
+        typewriter(f"{entity.name} is frozen solid!")
+
+    def on_expire(self, entity):
+        entity.is_stunned = False
+        entity.defense += self.defense_reduction
+        typewriter(f"{entity.name} thawed out!")
+
+
+# ==========================================
+# ATTACK DEBUFF (Opposite of Attack Buff)
+# ==========================================
+class AttackDebuff(StatusEffect):
+    def __init__(self, amount, duration):
+        super().__init__("Attack Down", duration)
+        self.amount = amount
+
+    def on_apply(self, entity):
+        entity.atk -= self.amount
+        typewriter(f"{entity.name}'s ATK decreased by {self.amount}!")
+
+    def on_expire(self, entity):
+        entity.atk += self.amount
+        typewriter(f"{entity.name}'s Attack returned to normal!")
+
+
+# ==========================================
+# DOUBLE GOLD (Stronger Version of GoldBoost)
+# Always x2
+# ==========================================
+class DoubleGold(StatusEffect):
+    def __init__(self, duration):
+        super().__init__("Double Gold", duration)
+
+    def on_apply(self, entity):
+        entity.gold_multiplier *= 2
+        typewriter(f"{entity.name} will earn DOUBLE gold!")
+
+    def on_expire(self, entity):
+        entity.gold_multiplier /= 2
+        typewriter("Double Gold has expired.")
+
+# -----------------------------------
+# Vulnerable Debuff
+# -----------------------------------
+class Vulnerable(StatusEffect):
+    def __init__(self, duration, dodge_penalty=0.2):
+        super().__init__("Vulnerable", duration)
+        self.dodge_penalty = dodge_penalty
+
+    def on_apply(self, entity):
+        if not hasattr(entity, "dodge_modifier"):
+            entity.dodge_modifier = 0
+        entity.dodge_modifier -= self.dodge_penalty
+        typewriter(f"{entity.name} feels exposed! Dodge reduced by {int(self.dodge_penalty*100)}% for {self.duration} turns.")
+
+    def on_expire(self, entity):
+        entity.dodge_modifier += self.dodge_penalty
+        typewriter(f"{entity.name} is no longer vulnerable.")
+
+ui.py
+
+# ui.py
+import os, time
+
+# -----------------------------
+# Utilities
+# -----------------------------
+def clear_screen():
+    """Clears the terminal screen."""
+    if os.name == "nt":  # Windows
+        os.system("cls")
+    else:  # macOS / Linux
+        os.system("clear")
+
+def typewriter(text, delay=0.005):
+    """Prints text one character at a time for a typewriter effect."""
+    for char in text:
+        print(char, end="", flush=True)
+        time.sleep(delay)
+    print()  # newline at the end
+
+# -----------------------------
+# ASCII Titles
+# -----------------------------
+game_title = r"""
+   _____                              ____          _                           _             
+  / ____|                            / __ \        | |                         (_)            
+ | |  __  __ _ _ __ ___   ___ ______| |  | |_ __   | |     ___  __ _ _ __ _ __  _ _ __   __ _ 
+ | | |_ |/ _` | '_ ` _ \ / _ \______| |  | | '_ \  | |    / _ \/ _` | '__| '_ \| | '_ \ / _` |
+ | |__| | (_| | | | | | |  __/      | |__| | | | | | |___|  __/ (_| | |  | | | | | | | | (_| |
+  \_____|\__,_|_| |_| |_|\___|       \____/|_| |_| |______\___|\__,_|_|  |_| |_|_|_| |_|\__, |
+                                                                                         __/ |
+                                                                                        |___/ 
+"""
+
+game_over_art = r"""
+   ____                        ___                 
+  / ___| __ _ _ __ ___   ___  / _ \__   _____ _ __ 
+ | |  _ / _` | '_ ` _ \ / _ \| | | \ \ / / _ \ '__|
+ | |_| | (_| | | | | | |  __/| |_| |\ V /  __/ |   
+  \____|\__,_|_| |_| |_|\___| \___/  \_/ \___|_|   
+"""
+
+# -----------------------------
+# Title Screen
+# -----------------------------
+def title_screen():
+    """Displays the title screen and returns True if start, False if exit."""
+    while True:
+        clear_screen()
+        print("=" * 60)
+        print(game_title)
+        print("=" * 60)
+        typewriter("\n1. Start Game", 0.03)
+        typewriter("2. Exit\n", 0.03)
+        print("=" * 60)
+
+        choice = input("Enter your choice: ").strip()
+        if choice == "1":
+            return True
+        elif choice == "2":
+            return False
+        else:
+            typewriter("Invalid choice. Please enter 1 or 2.", 0.03)
+            time.sleep(1)
+
+# -----------------------------
+# Game Over Screen
+# -----------------------------
+def game_over_screen():
+    """Displays the game over screen and returns True to restart, False to exit."""
+    while True:
+        clear_screen()
+        print("=" * 60)
+        print(game_over_art)
+        print("=" * 60)
+        typewriter("\n1. Restart", 0.03)
+        typewriter("2. Exit\n", 0.03)
+        print("=" * 60)
+
+        choice = input("Enter your choice: ").strip()
+        if choice == "1":
+            return True
+        elif choice == "2":
+            return False
+        else:
+            typewriter("Invalid choice. Please enter 1 or 2.", 0.03)
+            time.sleep(1)

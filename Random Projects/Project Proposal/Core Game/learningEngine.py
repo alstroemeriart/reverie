@@ -1,7 +1,7 @@
 import random, json
 import time
 from Spawns import MainCharacter, Enemy
-from aid import AllItems
+from items import AllItems
 from ui import typewriter
 
 

@@ -2,7 +2,7 @@ import random
 from dataclasses import dataclass, field
 from typing import List
 from statusEffects import StatusEffect
-from aid import HealingPotion, AttackBoost, HintPotion
+from items import HealingPotion, AttackBoost, HintPotion
 
 # -----------------------------
 # Base Spawn Class

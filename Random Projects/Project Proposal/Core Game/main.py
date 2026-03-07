@@ -1,7 +1,7 @@
 # Main game loop and character creation
 import time, os, random
 from Spawns import MainCharacter, Enemy, Spawn
-from aid import HealingPotion, AttackBoost, HintPotion
+from items import HealingPotion, AttackBoost, HintPotion
 from combatSystem import (
     player_turn,
     enemy_turn,
@@ -268,10 +268,10 @@ def main_game():
             result = start_combat(player, engine, tier)
 
             if result == "DEAD":
-                # Player died, end run
+                # Player died, end abstain
                 typewriter("\n=== GAME OVER ===")
                 game_over_screen()
-                return  # exit run immediately
+                return  # exit abstain immediately
 
             elif result == "Escaped":
                 typewriter("You escaped the battle — no rewards gained!")
@@ -343,7 +343,7 @@ if __name__ == "__main__":
     while True:
         start = title_screen()
         if start:
-            main_game()  # run combat
+            main_game()  # abstain combat
             restart = game_over_screen()
             if not restart:
                 break

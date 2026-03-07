@@ -80,7 +80,7 @@ def player_turn(player, enemy, learning_engine):
         typewriter("1. Attack")
         typewriter("2. Ask")
         typewriter("3. Aid")
-        typewriter("4. Run")
+        typewriter("4. Abstain")
 
         choice = input("> ").strip()
 
@@ -291,7 +291,7 @@ def choice_item(player):
     return True
 
 def choice_run(player, enemy):
-    typewriter(f"\n{player.name} attempts to run away...")
+    typewriter(f"\n{player.name} attempts to abstain away...")
     time.sleep(1)
 
     run_chance = 0.5 + (player.spd - enemy.spd) * 0.03

@@ -62,7 +62,7 @@ Core Systems To Implement
         * Extend timer
         * Increase damage multiplier
         * Reduce incoming damage
-    - Limited usage per run
+    - Limited usage per abstain
 
 5. Dungeon System
     - Procedurally generated layout

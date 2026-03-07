@@ -1,6 +1,6 @@
 # shop.py
 from ui import typewriter
-from aid import (
+from items import (
     HealingPotion, AttackBoost, HintPotion,
     DefenseBoost, MegaHealingPotion, SpeedBoost,
     PoisonBomb, FreezeScroll, WeaknessCurse,
