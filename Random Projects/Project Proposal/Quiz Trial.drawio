@@ -1,0 +1,255 @@
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36 OPR/127.0.0.0" version="29.6.1">
+  <diagram name="Page-1" id="7YYS7GoDrRKAgSby5eIm">
+    <mxGraphModel dx="876" dy="866" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="wYAVfRGM6Ns3bUwWbo9F-5" edge="1" parent="1" source="wYAVfRGM6Ns3bUwWbo9F-1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="wYAVfRGM6Ns3bUwWbo9F-3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="wYAVfRGM6Ns3bUwWbo9F-1" parent="1" style="ellipse;whiteSpace=wrap;html=1;labelBackgroundColor=none;fontStyle=1;fontSize=16;fontFamily=Helvetica;strokeWidth=2;fillColor=#0050ef;fontColor=#ffffff;strokeColor=#001DBC;" value="START" vertex="1">
+          <mxGeometry height="70" width="140" x="303" y="10" as="geometry" />
+        </mxCell>
+        <mxCell id="wYAVfRGM6Ns3bUwWbo9F-7" edge="1" parent="1" source="wYAVfRGM6Ns3bUwWbo9F-3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="wYAVfRGM6Ns3bUwWbo9F-6" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="wYAVfRGM6Ns3bUwWbo9F-3" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fontStyle=1;labelBackgroundColor=none;fillColor=#e51400;fontColor=#ffffff;strokeColor=#B20000;fontFamily=Helvetica;" value="TRIAL NODE" vertex="1">
+          <mxGeometry height="40" width="120" x="313" y="110" as="geometry" />
+        </mxCell>
+        <mxCell id="wYAVfRGM6Ns3bUwWbo9F-9" edge="1" parent="1" source="wYAVfRGM6Ns3bUwWbo9F-6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="wYAVfRGM6Ns3bUwWbo9F-8" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="wYAVfRGM6Ns3bUwWbo9F-6" parent="1" style="whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;rounded=0;fontStyle=1;labelBackgroundColor=none;rotation=0;" value="&lt;span style=&quot;font-weight: normal;&quot;&gt;Initialize Rewards = 0,&amp;nbsp;&lt;/span&gt;&lt;div&gt;&lt;span style=&quot;font-weight: normal;&quot;&gt;Moves = 0&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;font-weight: normal;&quot;&gt;Initialize quiz_trial()&lt;/span&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="60" width="160" x="293" y="180" as="geometry" />
+        </mxCell>
+        <mxCell id="wYAVfRGM6Ns3bUwWbo9F-11" edge="1" parent="1" source="wYAVfRGM6Ns3bUwWbo9F-8" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="wYAVfRGM6Ns3bUwWbo9F-10" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="wYAVfRGM6Ns3bUwWbo9F-8" parent="1" style="whiteSpace=wrap;html=1;fillColor=#e51400;strokeColor=#B20000;rounded=0;fontStyle=1;labelBackgroundColor=none;fontColor=#ffffff;" value="QUIZ TRIAL LOOP" vertex="1">
+          <mxGeometry height="40" width="120" x="313" y="270" as="geometry" />
+        </mxCell>
+        <mxCell id="wYAVfRGM6Ns3bUwWbo9F-13" edge="1" parent="1" source="wYAVfRGM6Ns3bUwWbo9F-10" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="wYAVfRGM6Ns3bUwWbo9F-12" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="wYAVfRGM6Ns3bUwWbo9F-10" parent="1" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fixedSize=1;fillColor=#f8cecc;strokeColor=#b85450;rounded=0;fontStyle=1;labelBackgroundColor=none;rotation=0;" value="&lt;span style=&quot;font-weight: normal;&quot;&gt;Display Maze Map&lt;/span&gt;" vertex="1">
+          <mxGeometry height="40" width="160" x="293" y="340" as="geometry" />
+        </mxCell>
+        <mxCell id="wYAVfRGM6Ns3bUwWbo9F-20" edge="1" parent="1" source="wYAVfRGM6Ns3bUwWbo9F-12" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="wYAVfRGM6Ns3bUwWbo9F-19" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="wYAVfRGM6Ns3bUwWbo9F-12" parent="1" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fixedSize=1;fillColor=#f8cecc;strokeColor=#b85450;rounded=0;fontStyle=1;labelBackgroundColor=none;rotation=0;" value="&lt;span style=&quot;font-weight: normal;&quot;&gt;Player Chooses Path&lt;/span&gt;&lt;div&gt;&lt;span style=&quot;font-weight: normal;&quot;&gt;(A, B, C)&lt;/span&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="40" width="160" x="293" y="410" as="geometry" />
+        </mxCell>
+        <mxCell id="wYAVfRGM6Ns3bUwWbo9F-22" edge="1" parent="1" source="wYAVfRGM6Ns3bUwWbo9F-19" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="wYAVfRGM6Ns3bUwWbo9F-21">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="wYAVfRGM6Ns3bUwWbo9F-19" parent="1" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fixedSize=1;fillColor=#f8cecc;strokeColor=#b85450;rounded=0;fontStyle=1;labelBackgroundColor=none;rotation=0;" value="&lt;span style=&quot;font-weight: 400;&quot;&gt;Display Quiz Question&lt;/span&gt;&lt;div&gt;&lt;span style=&quot;font-weight: 400;&quot;&gt;Input Answer&lt;/span&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="40" width="160" x="293" y="480" as="geometry" />
+        </mxCell>
+        <mxCell id="wYAVfRGM6Ns3bUwWbo9F-24" edge="1" parent="1" source="wYAVfRGM6Ns3bUwWbo9F-21" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fillColor=#008a00;strokeColor=#005700;strokeWidth=2;" target="wYAVfRGM6Ns3bUwWbo9F-23" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="wYAVfRGM6Ns3bUwWbo9F-26" edge="1" parent="1" source="wYAVfRGM6Ns3bUwWbo9F-21" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fillColor=#fa6800;strokeColor=#C73500;" target="wYAVfRGM6Ns3bUwWbo9F-25" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="443" y="600" />
+              <mxPoint x="443" y="650" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="wYAVfRGM6Ns3bUwWbo9F-21" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#f0a30a;strokeColor=#BD7000;rounded=0;fontStyle=1;labelBackgroundColor=none;rotation=0;fontColor=#000000;" value="&lt;span style=&quot;font-weight: normal;&quot;&gt;Is answer correct?&lt;/span&gt;" vertex="1">
+          <mxGeometry height="100" width="100" x="323" y="550" as="geometry" />
+        </mxCell>
+        <mxCell id="yNn-YcH-Q7--1B0eElvl-4" edge="1" parent="1" source="wYAVfRGM6Ns3bUwWbo9F-23" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" target="yNn-YcH-Q7--1B0eElvl-3" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="wYAVfRGM6Ns3bUwWbo9F-23" parent="1" style="whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;rounded=0;fontStyle=1;labelBackgroundColor=none;" value="&lt;span style=&quot;font-weight: 400;&quot;&gt;Give EXP / Gold / Item by chance&lt;/span&gt;" vertex="1">
+          <mxGeometry height="40" width="120" x="166" y="630" as="geometry" />
+        </mxCell>
+        <mxCell id="yNn-YcH-Q7--1B0eElvl-5" edge="1" parent="1" source="wYAVfRGM6Ns3bUwWbo9F-25" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="yNn-YcH-Q7--1B0eElvl-3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="wYAVfRGM6Ns3bUwWbo9F-25" parent="1" style="whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;rounded=0;fontStyle=1;labelBackgroundColor=none;" value="&lt;span style=&quot;font-weight: normal;&quot;&gt;Apply penalty&lt;/span&gt;" vertex="1">
+          <mxGeometry height="40" width="120" x="461" y="630" as="geometry" />
+        </mxCell>
+        <mxCell id="yNn-YcH-Q7--1B0eElvl-7" edge="1" parent="1" source="yNn-YcH-Q7--1B0eElvl-3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;fillColor=#a0522d;strokeColor=#6D1F00;" target="yNn-YcH-Q7--1B0eElvl-6" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="yNn-YcH-Q7--1B0eElvl-9" edge="1" parent="1" source="yNn-YcH-Q7--1B0eElvl-3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fillColor=#e51400;strokeColor=#B20000;" target="yNn-YcH-Q7--1B0eElvl-8" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="yNn-YcH-Q7--1B0eElvl-3" parent="1" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fixedSize=1;fillColor=#f8cecc;strokeColor=#b85450;rounded=0;fontStyle=1;labelBackgroundColor=none;rotation=0;" value="&lt;span style=&quot;font-weight: normal;&quot;&gt;Random event&lt;/span&gt;" vertex="1">
+          <mxGeometry height="40" width="160" x="293" y="710" as="geometry" />
+        </mxCell>
+        <mxCell id="yNn-YcH-Q7--1B0eElvl-21" edge="1" parent="1" source="yNn-YcH-Q7--1B0eElvl-6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="yNn-YcH-Q7--1B0eElvl-20" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="yNn-YcH-Q7--1B0eElvl-6" parent="1" style="whiteSpace=wrap;html=1;fillColor=#a0522d;strokeColor=#6D1F00;rounded=0;fontStyle=1;labelBackgroundColor=none;fontColor=#ffffff;" value="Chest" vertex="1">
+          <mxGeometry height="40" width="120" x="166" y="790" as="geometry" />
+        </mxCell>
+        <mxCell id="yNn-YcH-Q7--1B0eElvl-11" edge="1" parent="1" source="yNn-YcH-Q7--1B0eElvl-8" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="yNn-YcH-Q7--1B0eElvl-10" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="yNn-YcH-Q7--1B0eElvl-8" parent="1" style="whiteSpace=wrap;html=1;fillColor=#1ba1e2;strokeColor=#006EAF;rounded=0;fontStyle=1;labelBackgroundColor=none;fontColor=#ffffff;" value="Trapped Question" vertex="1">
+          <mxGeometry height="40" width="120" x="453" y="790" as="geometry" />
+        </mxCell>
+        <mxCell id="yNn-YcH-Q7--1B0eElvl-13" edge="1" parent="1" source="yNn-YcH-Q7--1B0eElvl-10" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="yNn-YcH-Q7--1B0eElvl-12">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="yNn-YcH-Q7--1B0eElvl-10" parent="1" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fixedSize=1;fillColor=#dae8fc;strokeColor=#6c8ebf;rounded=0;fontStyle=1;labelBackgroundColor=none;rotation=0;" value="&lt;span style=&quot;font-weight: normal;&quot;&gt;Input answer&lt;/span&gt;" vertex="1">
+          <mxGeometry height="40" width="160" x="433" y="870" as="geometry" />
+        </mxCell>
+        <mxCell id="yNn-YcH-Q7--1B0eElvl-15" edge="1" parent="1" source="yNn-YcH-Q7--1B0eElvl-12" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fillColor=#008a00;strokeColor=#005700;strokeWidth=2;" target="yNn-YcH-Q7--1B0eElvl-14" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="yNn-YcH-Q7--1B0eElvl-17" edge="1" parent="1" source="yNn-YcH-Q7--1B0eElvl-12" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fillColor=#fa6800;strokeColor=#C73500;" target="yNn-YcH-Q7--1B0eElvl-16" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="yNn-YcH-Q7--1B0eElvl-12" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#f0a30a;strokeColor=#BD7000;rounded=0;fontStyle=1;labelBackgroundColor=none;rotation=0;fontColor=#000000;" value="&lt;span style=&quot;font-weight: normal;&quot;&gt;Is answer correct?&lt;/span&gt;" vertex="1">
+          <mxGeometry height="100" width="100" x="463" y="950" as="geometry" />
+        </mxCell>
+        <mxCell id="yNn-YcH-Q7--1B0eElvl-25" edge="1" parent="1" source="yNn-YcH-Q7--1B0eElvl-14" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="yNn-YcH-Q7--1B0eElvl-22">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="yNn-YcH-Q7--1B0eElvl-14" parent="1" style="whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;rounded=0;fontStyle=1;labelBackgroundColor=none;" value="&lt;span style=&quot;font-weight: normal;&quot;&gt;Escape the trap&lt;/span&gt;" vertex="1">
+          <mxGeometry height="40" width="120" x="313" y="1060" as="geometry" />
+        </mxCell>
+        <mxCell id="yNn-YcH-Q7--1B0eElvl-26" edge="1" parent="1" source="yNn-YcH-Q7--1B0eElvl-16" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="yNn-YcH-Q7--1B0eElvl-22">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="653" y="1130" />
+              <mxPoint x="373" y="1130" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="yNn-YcH-Q7--1B0eElvl-16" parent="1" style="whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;rounded=0;fontStyle=1;labelBackgroundColor=none;" value="&lt;span style=&quot;font-weight: normal;&quot;&gt;Get damaged&lt;/span&gt;" vertex="1">
+          <mxGeometry height="40" width="120" x="593" y="1060" as="geometry" />
+        </mxCell>
+        <mxCell id="yNn-YcH-Q7--1B0eElvl-23" edge="1" parent="1" source="yNn-YcH-Q7--1B0eElvl-20" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="yNn-YcH-Q7--1B0eElvl-22">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="226" y="1130" />
+              <mxPoint x="373" y="1130" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="yNn-YcH-Q7--1B0eElvl-20" parent="1" style="whiteSpace=wrap;html=1;fillColor=#fad7ac;strokeColor=#b46504;rounded=0;fontStyle=1;labelBackgroundColor=none;" value="&lt;span style=&quot;font-weight: normal;&quot;&gt;Gain rewards&lt;/span&gt;" vertex="1">
+          <mxGeometry height="40" width="120" x="166" y="870" as="geometry" />
+        </mxCell>
+        <mxCell id="yNn-YcH-Q7--1B0eElvl-28" edge="1" parent="1" source="yNn-YcH-Q7--1B0eElvl-22" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="yNn-YcH-Q7--1B0eElvl-27" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="yNn-YcH-Q7--1B0eElvl-22" parent="1" style="whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;rounded=0;fontStyle=1;labelBackgroundColor=none;" value="moves += 1" vertex="1">
+          <mxGeometry height="40" width="120" x="313" y="1150" as="geometry" />
+        </mxCell>
+        <mxCell id="yNn-YcH-Q7--1B0eElvl-29" edge="1" parent="1" source="yNn-YcH-Q7--1B0eElvl-27" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fillColor=#fa6800;strokeColor=#C73500;" target="wYAVfRGM6Ns3bUwWbo9F-12">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="138" y="1290" />
+              <mxPoint x="138" y="430" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="yNn-YcH-Q7--1B0eElvl-34" edge="1" parent="1" source="yNn-YcH-Q7--1B0eElvl-27" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;fillColor=#008a00;strokeColor=#005700;" target="yNn-YcH-Q7--1B0eElvl-33" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="yNn-YcH-Q7--1B0eElvl-27" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#f0a30a;strokeColor=#BD7000;rounded=0;fontStyle=0;labelBackgroundColor=none;rotation=0;align=center;verticalAlign=middle;fontFamily=Helvetica;fontSize=12;fontColor=#000000;" value="Is moves&amp;nbsp;&lt;div&gt;&amp;gt;= 5?&lt;/div&gt;" vertex="1">
+          <mxGeometry height="100" width="100" x="323" y="1240" as="geometry" />
+        </mxCell>
+        <mxCell id="yNn-YcH-Q7--1B0eElvl-36" edge="1" parent="1" source="yNn-YcH-Q7--1B0eElvl-33" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="yNn-YcH-Q7--1B0eElvl-35" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="yNn-YcH-Q7--1B0eElvl-33" parent="1" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fixedSize=1;fillColor=#f8cecc;strokeColor=#b85450;rounded=0;fontStyle=0;labelBackgroundColor=none;rotation=0;" value="Player chooses to fight&lt;div&gt;&amp;nbsp;the trial guard&lt;/div&gt;" vertex="1">
+          <mxGeometry height="40" width="160" x="293" y="1390" as="geometry" />
+        </mxCell>
+        <mxCell id="yNn-YcH-Q7--1B0eElvl-38" edge="1" parent="1" source="yNn-YcH-Q7--1B0eElvl-35" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;fillColor=#008a00;strokeColor=#005700;" target="yNn-YcH-Q7--1B0eElvl-37" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="yNn-YcH-Q7--1B0eElvl-48" edge="1" parent="1" source="yNn-YcH-Q7--1B0eElvl-35" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fillColor=#f0a30a;strokeColor=#BD7000;" target="yNn-YcH-Q7--1B0eElvl-47">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="yNn-YcH-Q7--1B0eElvl-35" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#f0a30a;strokeColor=#BD7000;rounded=0;fontStyle=0;labelBackgroundColor=none;rotation=0;align=center;verticalAlign=middle;fontFamily=Helvetica;fontSize=12;fontColor=#000000;" value="Is player challenging?" vertex="1">
+          <mxGeometry height="100" width="100" x="323" y="1480" as="geometry" />
+        </mxCell>
+        <mxCell id="yNn-YcH-Q7--1B0eElvl-40" edge="1" parent="1" source="yNn-YcH-Q7--1B0eElvl-37" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="yNn-YcH-Q7--1B0eElvl-39" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="yNn-YcH-Q7--1B0eElvl-37" parent="1" style="whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;rounded=0;fontStyle=0;labelBackgroundColor=none;rotation=0;" value="START start_combat()" vertex="1">
+          <mxGeometry height="40" width="160" x="293" y="1630" as="geometry" />
+        </mxCell>
+        <mxCell id="yNn-YcH-Q7--1B0eElvl-42" edge="1" parent="1" source="yNn-YcH-Q7--1B0eElvl-39" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;fillColor=#008a00;strokeColor=#005700;" target="yNn-YcH-Q7--1B0eElvl-41" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="yNn-YcH-Q7--1B0eElvl-52" edge="1" parent="1" source="yNn-YcH-Q7--1B0eElvl-39" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fillColor=#f0a30a;strokeColor=#BD7000;" target="yNn-YcH-Q7--1B0eElvl-50">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="220" y="1770" />
+              <mxPoint x="220" y="2105" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="yNn-YcH-Q7--1B0eElvl-39" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#f0a30a;strokeColor=#BD7000;rounded=0;fontStyle=1;labelBackgroundColor=none;align=center;verticalAlign=middle;fontFamily=Helvetica;fontSize=12;fontColor=#000000;rotation=0;" value="&lt;span style=&quot;font-weight: 400;&quot;&gt;Is return&lt;/span&gt;&lt;div&gt;&lt;span style=&quot;font-weight: 400;&quot;&gt;= &quot;win&quot; ?&lt;/span&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="100" width="100" x="323" y="1720" as="geometry" />
+        </mxCell>
+        <mxCell id="yNn-YcH-Q7--1B0eElvl-44" edge="1" parent="1" source="yNn-YcH-Q7--1B0eElvl-41" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="yNn-YcH-Q7--1B0eElvl-43" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="yNn-YcH-Q7--1B0eElvl-41" parent="1" style="whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;rounded=0;fontStyle=1;labelBackgroundColor=none;rotation=0;" value="&lt;span style=&quot;font-weight: 400;&quot;&gt;Double the accumulated rewards&lt;/span&gt;" vertex="1">
+          <mxGeometry height="40" width="160" x="293" y="1870" as="geometry" />
+        </mxCell>
+        <mxCell id="yNn-YcH-Q7--1B0eElvl-51" edge="1" parent="1" source="yNn-YcH-Q7--1B0eElvl-43" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="yNn-YcH-Q7--1B0eElvl-50">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="yNn-YcH-Q7--1B0eElvl-43" parent="1" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fixedSize=1;fillColor=#e51400;strokeColor=#B20000;rounded=0;fontStyle=1;labelBackgroundColor=none;rotation=0;fontColor=#ffffff;" value="Display results and looted rewards" vertex="1">
+          <mxGeometry height="60" width="180" x="283" y="1960" as="geometry" />
+        </mxCell>
+        <mxCell id="yNn-YcH-Q7--1B0eElvl-49" edge="1" parent="1" source="yNn-YcH-Q7--1B0eElvl-47" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" target="yNn-YcH-Q7--1B0eElvl-43">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="661" y="1990" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="yNn-YcH-Q7--1B0eElvl-47" parent="1" style="whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;rounded=0;fontStyle=1;labelBackgroundColor=none;rotation=0;" value="&lt;span style=&quot;font-weight: 400;&quot;&gt;Count the accumulated rewards&lt;/span&gt;" vertex="1">
+          <mxGeometry height="40" width="160" x="581" y="1510" as="geometry" />
+        </mxCell>
+        <mxCell id="yNn-YcH-Q7--1B0eElvl-50" parent="1" style="ellipse;whiteSpace=wrap;html=1;labelBackgroundColor=none;fontStyle=1;fontSize=16;fontFamily=Helvetica;strokeWidth=2;fillColor=#0050ef;fontColor=#ffffff;strokeColor=#001DBC;" value="END" vertex="1">
+          <mxGeometry height="70" width="140" x="303" y="2070" as="geometry" />
+        </mxCell>
+        <mxCell id="yNn-YcH-Q7--1B0eElvl-53" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=right;verticalAlign=middle;rounded=0;fontSize=28;fontStyle=1;labelBackgroundColor=none;fontFamily=Helvetica;" value="QUIZ TRIAL LOOP FLOWCHART&amp;nbsp;&lt;div&gt;[ quiz_trial() ]&lt;/div&gt;" vertex="1">
+          <mxGeometry height="50" width="370" x="461" y="2110" as="geometry" />
+        </mxCell>
+        <mxCell id="yNn-YcH-Q7--1B0eElvl-54" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;rounded=0;labelBackgroundColor=none;fontStyle=1;fontSize=14;labelBorderColor=none;textShadow=0;fontFamily=Helvetica;" value="No" vertex="1">
+          <mxGeometry height="30" width="130" x="453" y="600" as="geometry" />
+        </mxCell>
+        <mxCell id="yNn-YcH-Q7--1B0eElvl-55" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=right;verticalAlign=middle;rounded=0;labelBackgroundColor=none;fontStyle=1;fontSize=14;labelBorderColor=none;textShadow=0;fontFamily=Helvetica;" value="Yes" vertex="1">
+          <mxGeometry height="30" width="124" x="166" y="600" as="geometry" />
+        </mxCell>
+        <mxCell id="yNn-YcH-Q7--1B0eElvl-56" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=right;verticalAlign=middle;rounded=0;labelBackgroundColor=none;fontStyle=1;fontSize=14;labelBorderColor=none;textShadow=0;fontFamily=Helvetica;" value="Yes" vertex="1">
+          <mxGeometry height="30" width="124" x="339" y="960" as="geometry" />
+        </mxCell>
+        <mxCell id="yNn-YcH-Q7--1B0eElvl-57" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;rounded=0;labelBackgroundColor=none;fontStyle=1;fontSize=14;labelBorderColor=none;textShadow=0;fontFamily=Helvetica;" value="No" vertex="1">
+          <mxGeometry height="30" width="124" x="563" y="960" as="geometry" />
+        </mxCell>
+        <mxCell id="yNn-YcH-Q7--1B0eElvl-58" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;rounded=0;labelBackgroundColor=none;fontStyle=1;fontSize=14;labelBorderColor=none;textShadow=0;fontFamily=Helvetica;" value="Yes:&lt;span style=&quot;font-weight: normal;&quot;&gt;&amp;nbsp;Trial exit is now available, but as well as the final guard&lt;/span&gt;" vertex="1">
+          <mxGeometry height="30" width="210" x="380" y="1340" as="geometry" />
+        </mxCell>
+        <mxCell id="yNn-YcH-Q7--1B0eElvl-59" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;rounded=0;labelBackgroundColor=none;fontStyle=1;fontSize=14;labelBorderColor=none;textShadow=0;fontFamily=Helvetica;" value="No:&lt;span style=&quot;font-weight: normal;&quot;&gt;&amp;nbsp;Player will choose a new path until total moves/paths count to 5&lt;/span&gt;" vertex="1">
+          <mxGeometry height="30" width="190" x="149" y="1240" as="geometry" />
+        </mxCell>
+        <mxCell id="yNn-YcH-Q7--1B0eElvl-60" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;rounded=0;labelBackgroundColor=none;fontStyle=1;fontSize=14;labelBorderColor=none;textShadow=0;fontFamily=Helvetica;" value="Yes: &lt;span style=&quot;font-weight: normal;&quot;&gt;Start combat, risk all your rewards for double rewards&lt;/span&gt;" vertex="1">
+          <mxGeometry height="30" width="200" x="166" y="1580" as="geometry" />
+        </mxCell>
+        <mxCell id="yNn-YcH-Q7--1B0eElvl-61" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;rounded=0;labelBackgroundColor=none;fontStyle=1;fontSize=14;labelBorderColor=none;textShadow=0;fontFamily=Helvetica;" value="No:&lt;span style=&quot;font-weight: normal;&quot;&gt;&amp;nbsp;Player decided to not risk it and exited the trial&lt;/span&gt;" vertex="1">
+          <mxGeometry height="30" width="167" x="416" y="1490" as="geometry" />
+        </mxCell>
+        <mxCell id="yNn-YcH-Q7--1B0eElvl-62" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;rounded=0;labelBackgroundColor=none;fontStyle=1;fontSize=14;labelBorderColor=none;textShadow=0;fontFamily=Helvetica;" value="Yes:&lt;span style=&quot;font-weight: normal;&quot;&gt;&amp;nbsp;Grant the risk taker its worth&lt;/span&gt;" vertex="1">
+          <mxGeometry height="30" width="190" x="383" y="1820" as="geometry" />
+        </mxCell>
+        <mxCell id="yNn-YcH-Q7--1B0eElvl-63" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;rounded=0;labelBackgroundColor=none;fontStyle=1;fontSize=14;labelBorderColor=none;textShadow=0;fontFamily=Helvetica;" value="No:&lt;span style=&quot;font-weight: normal;&quot;&gt;&amp;nbsp;Player receives the consequences and get forced out of the trial with nothing&lt;/span&gt;" vertex="1">
+          <mxGeometry height="30" width="190" x="149" y="1720" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
