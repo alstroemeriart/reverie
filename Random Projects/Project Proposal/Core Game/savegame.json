@@ -1,0 +1,63 @@
+{
+  "player": {
+    "name": "Artsy",
+    "max_hp": 50,
+    "hp": 50,
+    "atk": 8,
+    "defense": 10,
+    "spd": 3,
+    "wisdom": 16,
+    "crit_chance": 0,
+    "crit_multiplier": 4.640117538143324,
+    "lvl": 2,
+    "exp": 68,
+    "xp_to_next": 130,
+    "gold": 88,
+    "streak": 8,
+    "longest_streak": 9,
+    "focus": 0,
+    "max_focus": 100,
+    "mastery": {
+      "TF": 3,
+      "MC": 4,
+      "AR": 2,
+      "ID": 0
+    },
+    "action_points": 2,
+    "inventory": [
+      {
+        "name": "Healing Potion",
+        "price": 15
+      },
+      {
+        "name": "Attack Boost",
+        "price": 25
+      },
+      {
+        "name": "Hint Potion",
+        "price": 20
+      },
+      {
+        "name": "Speed Boost",
+        "price": 30
+      },
+      {
+        "name": "Speed Boost",
+        "price": 30
+      },
+      {
+        "name": "Weakness Curse",
+        "price": 30
+      },
+      {
+        "name": "Weakness Curse",
+        "price": 30
+      }
+    ]
+  },
+  "run": {
+    "tier": 1,
+    "battles_won": 2,
+    "nodes_cleared": 4
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "notes": {
+    "TF": "notes\\TorF.txt",
+    "MC": "notes\\MCQ.txt",
+    "AR": "notes\\Math.txt",
+    "ID": "notes\\Identify"
+  },
+  "save_file": "savegame.json",
+  "last_run_file": "last_run.txt"
+}

@@ -1,0 +1,51 @@
+{
+  "player": {
+    "name": "artsy",
+    "max_hp": 69,
+    "hp": 60,
+    "atk": 35,
+    "defense": 12,
+    "spd": 8,
+    "wisdom": 8,
+    "crit_chance": 1,
+    "crit_multiplier": 2.4647129241439556,
+    "lvl": 1,
+    "exp": 25,
+    "xp_to_next": 100,
+    "gold": 30,
+    "streak": 0,
+    "longest_streak": 1,
+    "focus": 11,
+    "max_focus": 100,
+    "mastery": {
+      "TF": 2,
+      "MC": 0,
+      "AR": 0,
+      "ID": 0
+    },
+    "action_points": 2,
+    "inventory": [
+      {
+        "name": "Healing Potion",
+        "price": 15
+      },
+      {
+        "name": "Attack Boost",
+        "price": 25
+      },
+      {
+        "name": "Hint Potion",
+        "price": 20
+      },
+      {
+        "name": "Speed Boost",
+        "price": 30
+      }
+    ]
+  },
+  "run": {
+    "tier": 1,
+    "battles_won": 1,
+    "nodes_cleared": 2
+  }
+}

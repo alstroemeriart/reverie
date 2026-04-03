@@ -1,62 +1,50 @@
+# COMBAT CALCULATIONS
+
 import random
 
 def check_dodge(attacker, defender):
-    # Simple dodge formula
-    dodge_chance = defender.speed * 0.02  # 2% per speed point
+    """Return True if defender dodges the attack (includes streak bonus)."""
+    base_chance = defender.spd * 0.02
 
-    if random.random() < dodge_chance:
-        return True
-    return False
+    if hasattr(defender, "streak_dodge_bonus"):
+        base_chance += defender.streak_dodge_bonus()
+
+    if hasattr(defender, "dodge_modifier"):
+        base_chance += defender.dodge_modifier
+
+    return random.random() < base_chance
 
 
 def check_critical(attacker):
-    if random.random() < attacker.crit_chance:
-        return True
-    return False
+    """Return True if attack is a critical hit."""
+    return random.random() < attacker.crit_chance
 
-def calculate_damage(attacker, defender):
 
-    # -----------------------------
-    # 1. Base Damage
-    # -----------------------------
-    base_damage = attacker.atk - defender.defense
-    base_damage = max(1, base_damage)
+def calculate_damage(attacker, defender, variance_low=-2, variance_high=2):
+    """Calculate damage, considering crits, variance, and streak buffs."""
 
-    # -----------------------------
-    # 2. Streak Scaling (Soft Cap)
-    # -----------------------------
-    streak = getattr(attacker, "streak", 0)
+    # Base attack, boosted by streak if attacker is MainCharacter
+    raw = attacker.atk
+    if hasattr(attacker, "streak_attack_bonus"):
+        raw += attacker.streak_attack_bonus()
 
-    # Soft scaling formula to prevent runaway damage
-    # Early streak feels strong, later streak scales slower
-    streak_multiplier = 1 + (streak * 0.05) / (1 + streak * 0.02)
-
-    # -----------------------------
-    # 3. Wisdom Scaling
-    # -----------------------------
+    # Wisdom scales damage
     wisdom = getattr(attacker, "wisdom", 0)
     wisdom_bonus = 1 + (wisdom * 0.01)
 
-    # -----------------------------
-    # 4. Mastery Bonus (Future Expansion Ready)
-    # -----------------------------
+    # Mastery gives a small long-term bonus
     mastery_bonus = 1.0
     if hasattr(attacker, "mastery"):
         total_mastery = sum(attacker.mastery.values())
-        mastery_bonus += total_mastery * 0.002  # small long-term scaling
+        mastery_bonus += total_mastery * 0.002
 
-    # -----------------------------
-    # 5. Final Calculation
-    # -----------------------------
-    damage = base_damage * streak_multiplier * wisdom_bonus * mastery_bonus
+    variance = random.randint(variance_low, variance_high)
+    base = max(1, raw - defender.defense + variance)
+    base = int(base * wisdom_bonus * mastery_bonus)
 
-    base_damage = attacker.attack - defender.defense
-    if base_damage < 1:
-        base_damage = 1
-
-    # Critical hit?
     is_crit = check_critical(attacker)
     if is_crit:
-        base_damage *= attacker.crit_multiplier
+        base = int(base * attacker.crit_multiplier)
 
-    return int(base_damage), is_crit
+    return base, is_crit
+

@@ -1,20 +1,109 @@
+# LEARNING ENGINE
+
 import random, json
 import time
 from Spawns import MainCharacter, Enemy
 from items import AllItems
 from ui import typewriter
 
+def validate_notes(filepath, qtype):
+    """
+    Check a notes file for formatting errors before loading.
+    Prints warnings for any malformed lines.
+    Returns True if file loaded cleanly, False if errors found.
+    """
+    errors = []
+    try:
+        with open(filepath, "r", encoding="utf-8") as f:
+            lines = f.readlines()
+    except FileNotFoundError:
+        typewriter(f"[Validator] File not found: {filepath}")
+        return False
+
+    for i, line in enumerate(lines, 1):
+        line = line.strip()
+        if not line:
+            continue
+
+        if qtype in ("TF", "AR"):
+            if "=" not in line:
+                errors.append(f"  Line {i}: missing '=' separator → {line!r}")
+            else:
+                parts = line.split("=", 1)
+                if not parts[0].strip():
+                    errors.append(f"  Line {i}: empty question → {line!r}")
+                if not parts[1].strip():
+                    errors.append(f"  Line {i}: empty answer → {line!r}")
+                if qtype == "TF":
+                    ans = parts[1].strip().lower()
+                    if ans not in ("true", "false"):
+                        errors.append(f"  Line {i}: TF answer must be 'True' or 'False' → {ans!r}")
+
+        elif qtype == "MC":
+            try:
+                import json
+                data = json.loads(line)
+                for key in ("question", "options", "answer"):
+                    if key not in data:
+                        errors.append(f"  Line {i}: missing key '{key}'")
+                if "options" in data and data.get("answer") not in data["options"]:
+                    errors.append(f"  Line {i}: answer not in options list")
+            except Exception:
+                errors.append(f"  Line {i}: invalid JSON → {line!r}")
+
+    if errors:
+        typewriter(f"[Validator] Issues in {filepath}:")
+        for err in errors:
+            typewriter(err)
+        return False
+
+    typewriter(f"[Validator] {filepath} — OK ({len(lines)} lines)")
+    return True
 
 class LearningEngine:
     def __init__(self):
         self.questions = []
+        self.wrong_answers = []
 
-    def load_notes(self, filepath, qtype="TF"):
+    def record_wrong(self, question_data):
+        """Store a question the player got wrong for end-of-run review."""
+        self.wrong_answers.append({
+            "question": question_data["question"],
+            "correct_answer": question_data["answer"],
+            "type": question_data["type"],
+        })
+
+    def get_weak_areas(self):
+        """Return which question types the player struggled with most."""
+        from collections import Counter
+        counts = Counter(q["type"] for q in self.wrong_answers)
+        return counts.most_common()
+
+    def print_review(self):
+        """Print a summary of missed questions at end of run."""
+        if not self.wrong_answers:
+            typewriter("\nYou answered every question correctly. Excellent!")
+            return
+
+        typewriter(f"\n--- Review: {len(self.wrong_answers)} missed questions ---")
+        for entry in self.wrong_answers[-10:]:   # show last 10 max
+            typewriter(f"  Q: {entry['question']}")
+            typewriter(f"  A: {entry['correct_answer']}")
+            typewriter("")
+
+        typewriter("Weak areas this run:")
+        for qtype, count in self.get_weak_areas():
+            category = {"TF": "True/False", "MC": "Multiple Choice",
+                        "AR": "Arithmetic", "ID": "Identification"}.get(qtype, qtype)
+            typewriter(f"  {category}: {count} wrong")
+
+    def load_notes(self, filepath, qtype="TF", difficulty=1):
         """
         Load questions from a notes file.
         - TF: True/False format, each line "Statement = True/False"
         - MC: Multiple Choice, JSON format per line: {"question": "...", "options": ["A","B"], "answer": "B"}
         - AR: Arithmetic or ID, "Question = Answer"
+        - OD: Ordering, each line: {"type":"OD","question":"Order these from smallest to largest", "items":["Atom","Molecule","Cell","Organ"],"answer":"1,2,3,4"}
         """
         try:
             with open(filepath, "r", encoding="utf-8") as file:
@@ -28,11 +117,12 @@ class LearningEngine:
                 if qtype == "TF" or qtype == "AR":
                     if "=" not in line:
                         continue
-                    statement, answer = line.split("=")
+                    statement, answer = line.split("=", 1)
                     self.questions.append({
                         "type": qtype,
                         "question": statement.strip(),
-                        "answer": answer.strip()
+                        "answer": answer.strip(),
+                        "difficulty" : difficulty
                     })
 
                 elif qtype == "MC":
@@ -41,6 +131,17 @@ class LearningEngine:
                         data = json.loads(line)
                         if "question" in data and "options" in data and "answer" in data:
                             data["type"] = "MC"
+                            data["difficulty"] = difficulty
+                            self.questions.append(data)
+                    except json.JSONDecodeError:
+                        continue
+
+                elif qtype == "OD":
+                    try:
+                        data = json.loads(line)
+                        if "question" in data and "items" in data and "answer" in data:
+                            data["type"] = "OD"
+                            data["difficulty"] = difficulty
                             self.questions.append(data)
                     except json.JSONDecodeError:
                         continue
@@ -48,10 +149,31 @@ class LearningEngine:
         except FileNotFoundError:
             typewriter(f"Notes file not found: {filepath}")
 
-    def get_random_question(self):
+    def get_question(self, difficulty=None):
+        """Get a random question, optionally filtered by difficulty (1, 2, or 3)."""
         if not self.questions:
             return None
-        return random.choice(self.questions)
+        
+        pool = self.questions
+        if difficulty is not None:
+            filtered = [q for q in self.questions if q.get("difficulty") == difficulty]
+            if filtered:
+                pool = filtered
+
+        # Build weights — questions answered wrong recently get higher weight
+        wrong_questions = {q["question"] for q in self.wrong_answers}
+        weights = []
+        for q in pool:
+            if q["question"] in wrong_questions:
+                weights.append(3)   # 3x more likely to appear again
+            else:
+                weights.append(1)
+
+        return random.choices(pool, weights=weights, k=1)[0]
+
+    # Keep get_random_question as an alias so existing code doesn't break
+    def get_random_question(self):
+        return self.get_question()
     
 def random_item_pool(num_rewards=1):
     """Select a random reward from the aid pool with rarity weighting"""
@@ -75,6 +197,32 @@ def random_item_pool(num_rewards=1):
             rewards.append(item_data["class"]())
 
     return rewards
+
+def combat_item_drop(tier=1):
+    """
+    Chance to drop an item after combat.
+    Higher tier = better drop chance and rarity.
+    """
+    drop_chance = 0.3 + (tier * 0.1)   # 40% at tier 1, 60% at tier 3
+    if random.random() > drop_chance:
+        return None
+
+    # Tier influences rarity weights
+    if tier == 1:
+        weights = [60, 30, 10, 0]     # common, uncommon, rare, legendary
+    elif tier == 2:
+        weights = [30, 40, 25, 5]
+    else:
+        weights = [10, 30, 45, 15]
+
+    rarities = ["common", "uncommon", "rare", "legendary"]
+    rarity = random.choices(rarities, weights=weights, k=1)[0]
+
+    possibilities = [i for i in AllItems if i["rarity"] == rarity]
+    if not possibilities:
+        return None
+
+    return random.choice(possibilities)["class"]()
 
 def quiz_trial(player, engine):
     """
@@ -121,7 +269,10 @@ def quiz_trial(player, engine):
         time.sleep(1)
 
         # Ask a random question for this move
-        q_data = engine.get_random_question()
+        maze_difficulty = 1 if moves <= 2 else (2 if moves <= 4 else 3)
+        q_data = engine.get_question(difficulty=maze_difficulty)
+        if q_data is None:
+            q_data = engine.get_question()
         if q_data is None:
             typewriter("No questions available! Skipping this move...")
             time.sleep(1)
@@ -210,8 +361,8 @@ def quiz_trial(player, engine):
             break
 
     # Apply accumulated rewards
-    player.gold += accumulated_rewards["gold"]
-    player.exp += accumulated_rewards["exp"]
+    player.apply_gold(accumulated_rewards["gold"])
+    player.gain_xp(accumulated_rewards["exp"])
     for aid in accumulated_rewards["aid"]:
         player.inventory.append(aid)
 
@@ -224,3 +375,70 @@ def quiz_trial(player, engine):
             typewriter(f"  - {aid.name}")
 
     time.sleep(1)
+
+
+def practice_mode(engine):
+    """
+    Standalone question drill outside of combat.
+    No penalties — just questions and answers with tracking.
+    """
+    from ui import typewriter, clear_screen
+    clear_screen()
+    typewriter("\n=== Practice Mode ===")
+    typewriter("Answer questions to review your material.")
+    typewriter("Type 'quit' at any time to return to the menu.\n")
+
+    correct = 0
+    total = 0
+    wrong_log = []
+
+    while True:
+        q = engine.get_question()
+        if q is None:
+            typewriter("No questions loaded.")
+            break
+
+        q_type = q["type"]
+        answer = q["answer"]
+        category = {"TF": "True/False", "MC": "Multiple Choice",
+                    "AR": "Arithmetic", "ID": "Identification"}.get(q_type, q_type)
+
+        typewriter(f"\n[{category}] {q['question']}")
+
+        if q_type == "TF":
+            raw = input("(True/False) > ").strip()
+        elif q_type == "MC":
+            options = q.get("options", [])
+            for i, opt in enumerate(options, 1):
+                typewriter(f"  {i}. {opt}")
+            raw = input("> ").strip()
+            try:
+                raw = options[int(raw) - 1]
+            except (ValueError, IndexError):
+                raw = ""
+        else:
+            raw = input("> ").strip()
+
+        if raw.lower() == "quit":
+            break
+
+        if raw.lower() == answer.lower():
+            typewriter("Correct!")
+            correct += 1
+        else:
+            typewriter(f"Wrong. The answer was: {answer}")
+            wrong_log.append(q)
+
+        total += 1
+
+        typewriter(f"Score: {correct}/{total}")
+        time.sleep(0.5)
+
+    typewriter(f"\nPractice complete. Final score: {correct}/{total}")
+    if wrong_log:
+        typewriter("\nYou missed these:")
+        for q in wrong_log:
+            typewriter(f"  Q: {q['question']}")
+            typewriter(f"  A: {q['answer']}")
+    time.sleep(1)
+

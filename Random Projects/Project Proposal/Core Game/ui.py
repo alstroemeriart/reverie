@@ -43,24 +43,38 @@ game_over_art = r"""
 # -----------------------------
 # Title Screen
 # -----------------------------
-def title_screen():
+def title_screen(last_run_path="last_run.txt"):
     """Displays the title screen and returns True if start, False if exit."""
     while True:
         clear_screen()
         print("=" * 60)
         print(game_title)
         print("=" * 60)
+
+        if os.path.exists(last_run_path):
+            try:
+                with open(last_run_path, "r") as f:
+                    content = f.read().strip()
+                print("\n--- Last Run ---")
+                print(content)
+                print()
+            except Exception:
+                pass
+
         typewriter("\n1. Start Game", 0.03)
-        typewriter("2. Exit\n", 0.03)
+        typewriter("2. Change Notes Files", 0.03)
+        typewriter("3. Exit\n", 0.03)
         print("=" * 60)
 
         choice = input("Enter your choice: ").strip()
         if choice == "1":
-            return True
+            return "start"
         elif choice == "2":
-            return False
+            return "reconfigure"
+        elif choice == "3":
+            return "exit"
         else:
-            typewriter("Invalid choice. Please enter 1 or 2.", 0.03)
+            typewriter("Invalid choice. Please enter 1, 2, or 3.", 0.03)
             time.sleep(1)
 
 # -----------------------------
@@ -85,3 +99,18 @@ def game_over_screen():
         else:
             typewriter("Invalid choice. Please enter 1 or 2.", 0.03)
             time.sleep(1)
+
+def hp_bar(current, maximum, length=20):
+    """Returns a visual HP bar string."""
+    filled = int((current / maximum) * length)
+    filled = max(0, min(length, filled))
+    bar = "#" * filled + "-" * (length - filled)
+
+    if current / maximum > 0.5:
+        status = "healthy"
+    elif current / maximum > 0.25:
+        status = "wounded"
+    else:
+        status = "critical"
+
+    return f"[{bar}] {current}/{maximum} ({status})"

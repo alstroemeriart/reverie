@@ -1,3 +1,5 @@
+# STATUS EFFECTS
+
 from ui import typewriter
 
 class StatusEffect:
@@ -180,11 +182,11 @@ class SpeedBuff(StatusEffect):
         self.amount = amount
 
     def on_apply(self, entity):
-        entity.speed += self.amount
+        entity.spd += self.amount
         typewriter(f"{entity.name}'s Speed increased by {self.amount}!")
 
     def on_expire(self, entity):
-        entity.speed -= self.amount
+        entity.spd -= self.amount
         typewriter(f"{entity.name}'s Speed Buff has worn off!")
 
 

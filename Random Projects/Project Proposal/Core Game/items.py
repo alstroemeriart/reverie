@@ -1,4 +1,3 @@
-# aid.py
 from statusEffects import StatusEffect
 from ui import typewriter
 import random
@@ -6,10 +5,12 @@ import random
 class Aid:
     """Base class for aid."""
     name = "Generic Aid"
-    price = 10  # default shop price
+    description = "Does something."
+    price = 10
 
     def use(self, user, target=None):
         return f"{user.name} used {self.name}, but nothing happened."
+
 
 # =========================
 # HEALING ITEMS
@@ -17,6 +18,7 @@ class Aid:
 
 class HealingPotion(Aid):
     name = "Healing Potion"
+    description = "Restores 20 HP."
     price = 15
 
     def __init__(self, heal_amount=20):
@@ -28,6 +30,7 @@ class HealingPotion(Aid):
 
 class MegaHealingPotion(Aid):
     name = "Mega Healing Potion"
+    description = "Restores 50 HP."
     price = 35
 
     def __init__(self, heal_amount=50):
@@ -36,13 +39,14 @@ class MegaHealingPotion(Aid):
     def use(self, user, target=None):
         user.heal(self.heal_amount)
         return f"{user.name} restores {self.heal_amount} HP!"
-    
+
 # =========================
 # BUFF ITEMS
 # =========================
 
 class AttackBoost(Aid):
     name = "Attack Boost"
+    description = "ATK +5 for 3 turns."
     price = 25
 
     def __init__(self, boost_amount=5, duration=3):
@@ -58,6 +62,7 @@ class AttackBoost(Aid):
 
 class DefenseBoost(Aid):
     name = "Defense Boost"
+    description = "DEF +5 for 3 turns."
     price = 25
 
     def __init__(self, boost_amount=5, duration=3):
@@ -73,6 +78,7 @@ class DefenseBoost(Aid):
 
 class SpeedBoost(Aid):
     name = "Speed Boost"
+    description = "SPD +3 for 3 turns. Improves dodge."
     price = 30
 
     def __init__(self, boost_amount=3, duration=3):
@@ -87,11 +93,12 @@ class SpeedBoost(Aid):
         return f"SPD +{self.boost_amount} for {self.duration} turns!"
 
 # =========================
-# DEBUFF ITEMS (Require New Status Effects)
+# DEBUFF ITEMS
 # =========================
 
 class PoisonBomb(Aid):
     name = "Poison Bomb"
+    description = "Poisons enemy for 4 turns (5 dmg/turn)."
     price = 30
 
     def __init__(self, damage_per_turn=5, duration=4):
@@ -109,6 +116,7 @@ class PoisonBomb(Aid):
 
 class FreezeScroll(Aid):
     name = "Freeze Scroll"
+    description = "Stuns enemy and lowers their DEF for 1 turn."
     price = 35
 
     def __init__(self, duration=1):
@@ -125,6 +133,7 @@ class FreezeScroll(Aid):
 
 class WeaknessCurse(Aid):
     name = "Weakness Curse"
+    description = "Reduces enemy ATK by 5 for 3 turns."
     price = 30
 
     def __init__(self, reduction=5, duration=3):
@@ -146,14 +155,16 @@ class WeaknessCurse(Aid):
 
 class HintPotion(Aid):
     name = "Hint Potion"
+    description = "Gives a hint on your next question."
     price = 20
 
     def use(self, user, target=None):
         user.hint_active = True
-        return "Your next question will be easier!"
+        return "Your next question will come with a hint!"
 
 class DoubleGoldCharm(Aid):
     name = "Double Gold Charm"
+    description = "Doubles gold earned for 3 turns."
     price = 40
 
     def __init__(self, duration=3):
@@ -168,24 +179,25 @@ class DoubleGoldCharm(Aid):
 
 class RevivalStone(Aid):
     name = "Revival Stone"
+    description = "Fully restores your HP."
     price = 50
 
     def use(self, user, target=None):
-        if user.hp <= 0:
-            user.hp = user.max_hp // 2
-            return f"{user.name} is revived with {user.hp} HP!"
-        return "Nothing happened."
-    
+        healed = user.max_hp - user.hp
+        user.hp = user.max_hp
+        return f"{user.name} is fully restored! ({healed} HP recovered)"
+
+
 AllItems = [
-    {"class": HealingPotion, "name": "Healing Potion", "rarity": "common"},
-    {"class": MegaHealingPotion, "name": "Mega Healing Potion", "rarity": "uncommon"},
-    {"class": AttackBoost, "name": "Attack Boost", "rarity": "uncommon"},
-    {"class": DefenseBoost, "name": "Defense Boost", "rarity": "uncommon"},
-    {"class": SpeedBoost, "name": "Speed Boost", "rarity": "uncommon"},
-    {"class": PoisonBomb, "name": "Poison Bomb", "rarity": "rare"},
-    {"class": FreezeScroll, "name": "Freeze Scroll", "rarity": "rare"},
-    {"class": WeaknessCurse, "name": "Weakness Curse", "rarity": "rare"},
-    {"class": HintPotion, "name": "Hint Potion", "rarity": "common"},
-    {"class": DoubleGoldCharm, "name": "Double Gold Charm", "rarity": "rare"},
-    {"class": RevivalStone, "name": "Revival Stone", "rarity": "legendary"},
+    {"class": HealingPotion,    "name": "Healing Potion",    "rarity": "common"},
+    {"class": MegaHealingPotion,"name": "Mega Healing Potion","rarity": "uncommon"},
+    {"class": AttackBoost,      "name": "Attack Boost",       "rarity": "uncommon"},
+    {"class": DefenseBoost,     "name": "Defense Boost",      "rarity": "uncommon"},
+    {"class": SpeedBoost,       "name": "Speed Boost",        "rarity": "uncommon"},
+    {"class": PoisonBomb,       "name": "Poison Bomb",        "rarity": "rare"},
+    {"class": FreezeScroll,     "name": "Freeze Scroll",      "rarity": "rare"},
+    {"class": WeaknessCurse,    "name": "Weakness Curse",     "rarity": "rare"},
+    {"class": HintPotion,       "name": "Hint Potion",        "rarity": "common"},
+    {"class": DoubleGoldCharm,  "name": "Double Gold Charm",  "rarity": "rare"},
+    {"class": RevivalStone,     "name": "Revival Stone",      "rarity": "legendary"},
 ]
