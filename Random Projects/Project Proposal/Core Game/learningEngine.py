@@ -104,6 +104,7 @@ class LearningEngine:
         - MC: Multiple Choice, JSON format per line: {"question": "...", "options": ["A","B"], "answer": "B"}
         - AR: Arithmetic or ID, "Question = Answer"
         - OD: Ordering, each line: {"type":"OD","question":"Order these from smallest to largest", "items":["Atom","Molecule","Cell","Organ"],"answer":"1,2,3,4"}
+        - FillBlanks: "Question with ___ = Answer"
         """
         try:
             with open(filepath, "r", encoding="utf-8") as file:
