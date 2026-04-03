@@ -1,34 +1,33 @@
 {
   "player": {
     "name": "Artsy",
-    "max_hp": 50,
-    "hp": 50,
-    "atk": 8,
-    "defense": 10,
-    "spd": 3,
-    "wisdom": 16,
+    "max_hp": 113,
+    "hp": 54,
+    "atk": 33,
+    "defense": 12,
+    "spd": 6,
+    "wisdom": 24,
     "crit_chance": 0,
-    "crit_multiplier": 4.640117538143324,
-    "lvl": 2,
-    "exp": 68,
-    "xp_to_next": 130,
-    "gold": 88,
-    "streak": 8,
-    "longest_streak": 9,
-    "focus": 0,
+    "crit_multiplier": 2.23758521959128,
+    "class_name": "Gambler",
+    "class_passive": "luck",
+    "run_modifier": "scholar",
+    "lvl": 5,
+    "exp": 216,
+    "xp_to_next": 284,
+    "gold": 264,
+    "streak": 4,
+    "longest_streak": 10,
+    "focus": 54,
     "max_focus": 100,
     "mastery": {
-      "TF": 3,
-      "MC": 4,
-      "AR": 2,
+      "TF": 6,
+      "MC": 10,
+      "AR": 11,
       "ID": 0
     },
     "action_points": 2,
     "inventory": [
-      {
-        "name": "Healing Potion",
-        "price": 15
-      },
       {
         "name": "Attack Boost",
         "price": 25
@@ -42,22 +41,66 @@
         "price": 30
       },
       {
+        "name": "Double Gold Charm",
+        "price": 40
+      },
+      {
+        "name": "Revival Stone",
+        "price": 50
+      },
+      {
+        "name": "Healing Potion",
+        "price": 15
+      },
+      {
+        "name": "Weakness Curse",
+        "price": 30
+      },
+      {
+        "name": "Weakness Curse",
+        "price": 30
+      },
+      {
+        "name": "Defense Boost",
+        "price": 25
+      },
+      {
+        "name": "Defense Boost",
+        "price": 25
+      },
+      {
+        "name": "Healing Potion",
+        "price": 15
+      },
+      {
         "name": "Speed Boost",
         "price": 30
       },
       {
-        "name": "Weakness Curse",
+        "name": "Revival Stone",
+        "price": 50
+      },
+      {
+        "name": "Freeze Scroll",
+        "price": 35
+      },
+      {
+        "name": "Healing Potion",
+        "price": 15
+      },
+      {
+        "name": "Poison Bomb",
         "price": 30
       },
       {
-        "name": "Weakness Curse",
-        "price": 30
+        "name": "Revival Stone",
+        "price": 50
       }
     ]
   },
   "run": {
-    "tier": 1,
-    "battles_won": 2,
-    "nodes_cleared": 4
+    "tier": 3,
+    "battles_won": 12,
+    "nodes_cleared": 19
   }
 }

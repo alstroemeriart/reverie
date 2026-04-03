@@ -191,6 +191,7 @@ def create_character():
         player.class_name = "Gambler"
         player.class_passive = "luck"
         # Each stat is randomly determined at the start of the run
+        return player
 
     elif choice == "6":
         return custom_build(name) # custom build
@@ -279,75 +280,67 @@ def start_combat(player, learning_engine, tier, nodes_cleared=1):
     typewriter(f"\nA wild {enemy.name} appears!")
     time.sleep(1)
 
-    combat_active = True
+    hp_before = player.hp
 
-    while combat_active:
+    while True:
 
-        # --- Display Stats ---
         display_entity_stats(player)
         display_entity_stats(enemy)
 
-        # --- Process Player Turn ---
         result = player_turn(player, enemy, learning_engine)
 
         if result == ESCAPED:
             typewriter("You successfully escaped the battle!")
             time.sleep(1)
-            return ESCAPED
+            return ESCAPED, False          # tuple
 
         if enemy.hp <= 0:
             typewriter(f"{enemy.name} defeated!")
             time.sleep(1)
-
             typewriter(f"\n--- Battle Summary ---")
             typewriter(f"HP remaining: {player.hp}/{player.max_hp}")
             typewriter(f"Streak: {player.streak} | Focus: {player.focus}/{player.max_focus}")
+            no_damage = (player.hp >= hp_before)
+            if no_damage:
+                typewriter("Flawless victory! No damage taken.")
             time.sleep(0.5)
-            return WIN
+            return WIN, no_damage          # tuple
 
         if player.hp <= 0:
             typewriter("You were defeated...")
             time.sleep(1)
-            return DEATH
+            return DEATH, False            # tuple
 
-        # --- Process Status Effects (player before enemy) ---
         process_status_effects(player)
 
         if enemy.hp <= 0:
             typewriter(f"{enemy.name} defeated!")
             time.sleep(1)
-
             xp_gain = 20 + (tier * 10)
             player.gain_xp(xp_gain)
-
             typewriter(f"Gained {xp_gain} XP!")
-            return WIN
+            return WIN, False              # tuple
 
         if player.hp <= 0:
             typewriter("You were defeated...")
             time.sleep(1)
-            return DEATH
+            return DEATH, False            # tuple
 
-        # --- Enemy Turn ---
         enemy_turn(enemy, player)
-
-        # --- Process Status Effects (enemy after action) ---
         process_status_effects(enemy)
 
         if player.hp <= 0:
             typewriter("You were defeated...")
             time.sleep(1)
-            return DEATH
+            return DEATH, False            # tuple
 
         if enemy.hp <= 0:
             typewriter(f"{enemy.name} defeated!")
             time.sleep(1)
-
             xp_gain = 20 + (tier * 10)
             player.gain_xp(xp_gain)
-
             typewriter(f"Gained {xp_gain} XP!")
-            return WIN
+            return WIN, False
         
 def random_event(player):
     """Small random events that fire between nodes ~20% of the time."""
@@ -385,7 +378,6 @@ def random_event(player):
 
 def main_game():
     """Runs a full RPG loop until player dies or escapes."""
-    player = create_character()
 
     unlocked_achievements = load_achievements()
     run_context = {
@@ -400,6 +392,7 @@ def main_game():
     battles_won = 0
     nodes_cleared = 0
     run_log = []
+    player = None
 
     if save_exists(SAVE_PATH):
         typewriter("A saved run was found. Continue? (y/n)")
@@ -410,6 +403,8 @@ def main_game():
                 current_tier = rdata["tier"]
                 battles_won = rdata["battles_won"]
                 nodes_cleared = rdata["nodes_cleared"]
+                run_context["battles_won"] = battles_won
+                run_context["nodes_cleared"] = nodes_cleared
                 typewriter(f"Welcome back, {player.name}!")
                 time.sleep(1)
 
@@ -419,6 +414,8 @@ def main_game():
         player.exp = 0
         player.streak = 0
         player.skills = create_skill_pool()
+        engine.wrong_answers.clear()
+        choose_run_modifier(player)
 
     typewriter("=" * 60)
     typewriter("\nWelcome to the Game-on Learning demo!")
@@ -434,8 +431,6 @@ def main_game():
     typewriter("\nYour goal: Clear 3 tiers and defeat the boss.")
     typewriter(f"Current Tier: {current_tier}/3")
     time.sleep(1)
-
-    choose_run_modifier(player)
 
     run_active = True
     while run_active and player.is_alive():
@@ -460,7 +455,9 @@ def main_game():
         # -------------------------
         # Battle / Elite
         if next_node.node_type == "battle":
-            result = start_combat(player, engine, next_node.tier, nodes_cleared)
+            result, no_damage = start_combat(player, engine, next_node.tier, nodes_cleared)
+            if no_damage and result == WIN:
+                run_context["no_damage_battle"] = True
 
             if result == DEATH:
                 typewriter("\n=== GAME OVER ===")
@@ -636,6 +633,8 @@ def main_game():
     typewriter(f"Final Gold: {player.gold}")
     typewriter(f"Highest Streak: {player.longest_streak}")
 
+    engine.print_review()
+
     if run_log:
         time.sleep(1)
         typewriter("\n--- Run Journal ---")
@@ -652,10 +651,9 @@ def main_game():
             f.write(f"Final Level: {player.lvl}\n")
     except Exception:
         pass
-
-    engine.print_review()
             
-    delete_save()
+    delete_save(SAVE_PATH)
+
     time.sleep(5)
     typewriter("\nReturning to main menu...")
     time.sleep(1)
@@ -706,6 +704,9 @@ def restore_player(pdata):
         for i in pdata["inventory"]
         if i["name"] in name_to_class
     ]
+    player.class_name = pdata.get("class_name", "")
+    player.class_passive = pdata.get("class_passive", "")
+    player.run_modifier = pdata.get("run_modifier", "")
     player.skills = create_skill_pool()
     return player
 
@@ -770,28 +771,32 @@ if __name__ == "__main__":
             if not restart:
                 break
 
+        elif action == "practice":
+            from learningEngine import practice_mode
+            practice_mode(engine)
+
+        elif action == "achievements":
+            unlocked = load_achievements()
+            print_achievements(unlocked)
+            input("\nPress Enter to return to menu...")
+
         elif action == "reconfigure":
             from config import setup_wizard, CONFIG_FILE
-            import os
             if os.path.exists(CONFIG_FILE):
                 os.remove(CONFIG_FILE)
             CONFIG = setup_wizard()
             NOTE_PATHS = get_notes_paths(CONFIG)
             SAVE_PATH = get_save_path(CONFIG)
             LAST_RUN_PATH = get_last_run_path(CONFIG)
-
             engine.questions.clear()
+            engine.wrong_answers.clear()
             for qtype, path in NOTE_PATHS.items():
                 validate_notes(path, qtype)
-                engine.load_notes(
-                    path,
-                    qtype=qtype,
-                    difficulty=NOTE_DIFFICULTIES.get(qtype, 1)
-                )
+                engine.load_notes(path, qtype=qtype,
+                                  difficulty=NOTE_DIFFICULTIES.get(qtype, 1))
             typewriter("Notes reloaded. Returning to menu...")
             time.sleep(1)
 
         elif action == "exit":
             break
 
-        

@@ -17,7 +17,9 @@ def check_dodge(attacker, defender):
 
 def check_critical(attacker):
     """Return True if attack is a critical hit."""
-    return random.random() < attacker.crit_chance
+    bonus = getattr(attacker, "_momentum_bonus", 0)
+    attacker._momentum_bonus = 0
+    return random.random() < (attacker.crit_chance + bonus)
 
 
 def calculate_damage(attacker, defender, variance_low=-2, variance_high=2):

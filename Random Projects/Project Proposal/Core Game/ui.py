@@ -62,16 +62,22 @@ def title_screen(last_run_path="last_run.txt"):
                 pass
 
         typewriter("\n1. Start Game", 0.03)
-        typewriter("2. Change Notes Files", 0.03)
-        typewriter("3. Exit\n", 0.03)
+        typewriter("2. Practice Mode", 0.03)
+        typewriter("3. Change Notes Files", 0.03)
+        typewriter("4. View Achievements", 0.03)
+        typewriter("5. Exit\n", 0.03)
         print("=" * 60)
 
         choice = input("Enter your choice: ").strip()
         if choice == "1":
             return "start"
         elif choice == "2":
-            return "reconfigure"
+            return "practice"
         elif choice == "3":
+            return "reconfigure"
+        elif choice == "4":
+            return "achievements"
+        elif choice == "5":
             return "exit"
         else:
             typewriter("Invalid choice. Please enter 1, 2, or 3.", 0.03)

@@ -152,6 +152,8 @@ def choice_ask(player, enemy, engine):
     next_milestone = ((mastery_val // 5) + 1) * 5
     typewriter(f"\n[{category_names.get(q_type, q_type)} | Mastery: {mastery_val} → next skill at {next_milestone}]")
 
+    correct = False
+
     # -----------------------------
     # Ask the question (hint applied inside each branch)
     # -----------------------------
@@ -207,9 +209,13 @@ def choice_ask(player, enemy, engine):
         try:
             raw = input("> ").strip()
             order = [int(x.strip()) - 1 for x in raw.split(",")]
-            player_sequence = [shuffled[i] for i in order]
-            correct_sequence = [items[int(i)-1] for i in question_data["answer"].split(",")]
-            correct = player_sequence == correct_sequence
+            if len(order) != len(items):
+                correct = False
+            else:
+                player_sequence = [shuffled[i] for i in order]
+                # answer is "1,2,3,4" = positions in original items list (1-indexed)
+                correct_sequence = [items[int(i) - 1] for i in question_data["answer"].split(",")]
+                correct = player_sequence == correct_sequence
         except (ValueError, IndexError):
             correct = False
 
@@ -242,6 +248,7 @@ def choice_ask(player, enemy, engine):
 
         elif passive == "momentum":
             bonus_crit = min(0.02 * player.streak, 0.30)
+            player.crit_chance += bonus_crit
             typewriter(f"[Momentum] Crit chance this strike: {int((player.crit_chance + bonus_crit)*100)}%")
 
         elif passive == "luck":
@@ -279,6 +286,11 @@ def choice_ask(player, enemy, engine):
 
             apply_skills(player, context)
             dmg = context["damage"]
+
+            # Scholar modifier
+            if getattr(player, "run_modifier", "") == "scholar":
+                dmg = int(dmg * 2)
+                typewriter("[Scholar's Burden] Knowledge empowers your strike!")
 
             enemy.take_dmg(dmg)
 
@@ -360,7 +372,6 @@ def choice_aid(player):
 
     typewriter("\nYour Inventory:")
     for i, aid in enumerate(player.inventory, 1):
-        typewriter(f"{i}. {aid.name}")
         typewriter(f"{i}. {aid.name} — {aid.description}")
     typewriter(f"{len(player.inventory)+1}. Cancel")
 

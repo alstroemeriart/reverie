@@ -72,6 +72,11 @@ class MainCharacter(Spawn):
         self.streak_protected = False
         self.action_points = 2
         self.max_action_points = 2
+        self.run_modifier = ""
+        self.class_name = ""
+        self.class_passive = ""
+        self.bloodlust_stacks = 0
+        self.dodge_next = False
 
         # Mastery tracking
         self.mastery = {"TF": 0, "MC": 0, "AR": 0, "ID": 0}
@@ -148,6 +153,8 @@ class Enemy(Spawn):
         self.crit_chance = crit_chance
         self.crit_multiplier = 1.5
         self.behavior = behavior
+        self.defense_bonus = 0
+        self.dodge_modifier = 0
 
 # ------------------------------
 # RunState
