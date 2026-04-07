@@ -102,3 +102,4 @@ def unlock_skills(player):
     for skill in player.skills:
         if not skill.unlocked and skill.condition(player):
             skill.unlocked = True
+

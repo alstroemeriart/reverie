@@ -260,3 +260,4 @@ class Vulnerable(StatusEffect):
     def on_expire(self, entity):
         entity.dodge_modifier += self.dodge_penalty
         typewriter(f"{entity.name} is no longer vulnerable.")
+

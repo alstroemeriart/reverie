@@ -1,3 +1,5 @@
+# ACHIEVEMENTS
+
 import json
 import os
 
@@ -68,3 +70,5 @@ def print_achievements(unlocked):
     for ach in ACHIEVEMENT_DEFINITIONS:
         status = "X" if ach["id"] in unlocked else " "
         typewriter(f"  [{status}] {ach['name']} — {ach['desc']}")
+
+        

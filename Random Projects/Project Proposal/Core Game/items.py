@@ -201,3 +201,4 @@ AllItems = [
     {"class": DoubleGoldCharm,  "name": "Double Gold Charm",  "rarity": "rare"},
     {"class": RevivalStone,     "name": "Revival Stone",      "rarity": "legendary"},
 ]
+

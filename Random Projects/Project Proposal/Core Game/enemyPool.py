@@ -83,3 +83,4 @@ def scale_enemy(enemy, nodes_cleared, tier):
     # Defense scales slower — avoid making enemies unkillable
     enemy.defense = int(enemy.defense * (1 + (nodes_cleared * 0.01)))
     return enemy
+
