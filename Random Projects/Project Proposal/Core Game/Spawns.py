@@ -90,6 +90,8 @@ class MainCharacter(Spawn):
         self.gold_multiplier = 1.0
         self.has_streak_guard = False
 
+        self.engine_ref = None
+
         self.skills = []
 
     # --- RPG Buffs from Streak ---
@@ -164,3 +166,4 @@ class RunState:
     tier: int = 1
     battles_won: int = 0
     nodes_cleared: int = 0
+

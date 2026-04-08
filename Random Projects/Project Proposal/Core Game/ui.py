@@ -1,4 +1,5 @@
-# ui.py
+# UI
+
 import os, time
 
 # -----------------------------
@@ -120,3 +121,76 @@ def hp_bar(current, maximum, length=20):
         status = "critical"
 
     return f"[{bar}] {current}/{maximum} ({status})"
+
+class EventBus:
+    """
+    Collects game events as structured data instead of printing directly.
+    The terminal reads from it immediately.
+    A future GUI reads from it to update widgets.
+    """
+    def __init__(self):
+        self._listeners = []
+        self._use_typewriter = True    # set False when GUI takes over
+
+    def subscribe(self, fn):
+        self._listeners.append(fn)
+
+    def emit(self, event_type, **data):
+        event = {"type": event_type, **data}
+        for listener in self._listeners:
+            listener(event)
+
+    def say(self, text):
+        """Emit a text message event."""
+        self.emit("text", content=text)
+
+    def stat_update(self, entity_name, hp, max_hp, **extras):
+        """Emit a stat update event."""
+        self.emit("stat_update", name=entity_name, hp=hp, max_hp=max_hp, **extras)
+
+    def combat_event(self, event_name, **data):
+        """Emit a combat-specific event."""
+        self.emit("combat", name=event_name, **data)
+
+# Global bus — import this everywhere instead of calling typewriter directly
+bus = EventBus()
+
+def _terminal_listener(event):
+    """Default listener: prints events to the terminal."""
+    if event["type"] == "text":
+        typewriter(event["content"])
+    elif event["type"] == "stat_update":
+        pass    # terminal already shows stats via display_entity_stats
+    elif event["type"] == "combat":
+        pass    # combat events are narrated via text events
+
+bus.subscribe(_terminal_listener)
+
+class InputHandler:
+    """
+    Wraps input() so a GUI can intercept it later.
+    Terminal mode: calls input() directly.
+    GUI mode: waits for GUI to push an answer.
+    """
+    def __init__(self):
+        self._pending = None
+        self._gui_mode = False
+
+    def ask(self, prompt=""):
+        if self._gui_mode:
+            # GUI will set self._pending when player clicks/types
+            import time
+            while self._pending is None:
+                time.sleep(0.05)
+            result = self._pending
+            self._pending = None
+            return result
+        else:
+            return input(prompt).strip()
+
+    def push_answer(self, answer):
+        """Called by GUI when player submits an answer."""
+        self._pending = answer
+
+input_handler = InputHandler()
+

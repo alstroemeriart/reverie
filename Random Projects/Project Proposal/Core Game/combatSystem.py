@@ -1,7 +1,7 @@
 # COMBAT SYSTEM
 
 import random, time
-from ui import typewriter, clear_screen, hp_bar
+from ui import typewriter, clear_screen, hp_bar, bus, input_handler
 from Spawns import Spawn
 from combatCalc import calculate_damage, check_dodge, check_critical
 from items import Aid
@@ -18,14 +18,19 @@ DEATH = "death"
 # -----------------------------
 # Damage line helper
 # -----------------------------
+# In damage_line:
 def damage_line(attacker_name, target, dmg):
     ratio = dmg / target.max_hp
     if ratio >= 0.25:
-        typewriter(f"HEAVY HIT! {attacker_name} deals {dmg} damage!")
+        msg = f"HEAVY HIT! {attacker_name} deals {dmg} damage!"
     elif ratio >= 0.10:
-        typewriter(f"{attacker_name} deals {dmg} damage.")
+        msg = f"{attacker_name} deals {dmg} damage."
     else:
-        typewriter(f"{attacker_name} grazes for {dmg} damage.")
+        msg = f"{attacker_name} grazes for {dmg} damage."
+    bus.say(msg)
+    bus.combat_event("damage", attacker=attacker_name,
+                     target=target.name, amount=dmg,
+                     severity="heavy" if ratio >= 0.25 else "normal")
 
 
 # -----------------------------
@@ -128,7 +133,7 @@ def choice_attack(player, enemy):
     time.sleep(1)
     return True
 
-def choice_ask(player, enemy, engine):
+def choice_ask(player, enemy, engine, engine_ref=None):
     """Ask a random question from the learning engine."""
 
     question_data = engine.get_random_question()
@@ -150,9 +155,23 @@ def choice_ask(player, enemy, engine):
     mastery_val = player.mastery.get(q_type, 0)
 
     next_milestone = ((mastery_val // 5) + 1) * 5
-    typewriter(f"\n[{category_names.get(q_type, q_type)} | Mastery: {mastery_val} → next skill at {next_milestone}]")
+    difficulty_label = {1: "easy", 2: "medium", 3: "hard"}.get(
+        question_data.get("difficulty", 1), "?"
+    )
+    typewriter(f"\n[{category_names.get(q_type, q_type)} | Mastery: {mastery_val} → {next_milestone} | {difficulty_label}]")
 
     correct = False
+
+    engine_ref = getattr(player, "engine_ref", None)
+    if engine_ref:
+            engine_ref.record_wrong(question_data)
+            repeat = engine_ref.get_consecutive_wrong()
+            if repeat:
+                typewriter(f"\n[This question has come up twice now.]")
+                typewriter(f"  Q: {repeat['question']}")
+                typewriter(f"  A: {repeat['correct_answer']}")
+                typewriter("[Take a moment to remember it.]")
+                time.sleep(1.5)
 
     # -----------------------------
     # Ask the question (hint applied inside each branch)
@@ -162,7 +181,7 @@ def choice_ask(player, enemy, engine):
             typewriter(f"[Hint: the answer has {len(answer)} characters]")
             typewriter("[Hint: think carefully about whether this is always true]")
             player.hint_active = False
-        player_answer = input(f"{question} (True/False) > ").strip()
+        player_answer = input_handler.ask(f"{question} (True/False) > ")
         correct = player_answer.lower() == answer.lower()
 
     elif q_type == "MC":
@@ -230,6 +249,12 @@ def choice_ask(player, enemy, engine):
 
         player.streak += 1
         player.longest_streak = max(player.longest_streak, player.streak)
+        try:
+            from narrative import show_streak_comment, show_correct_flavor
+            show_streak_comment(player.streak)
+            show_correct_flavor()
+        except ImportError:
+            pass
 
         unlock_skills(player)
 
@@ -304,6 +329,7 @@ def choice_ask(player, enemy, engine):
     # -----------------------------
     else:
         typewriter("Incorrect!")
+        engine.record_wrong(question_data)
 
         if passive == "fortress":
             typewriter("[Fortress] Your defenses hold — no punishment attack.")
@@ -322,6 +348,11 @@ def choice_ask(player, enemy, engine):
 
             typewriter(f"Streak reduced to {player.streak}")
             typewriter(f"Focus: {player.focus}/{player.max_focus}")
+            try:
+                from narrative import show_wrong_flavor
+                show_wrong_flavor()
+            except ImportError:
+                pass
 
             if not check_dodge(enemy, player):
                 dmg, is_crit = calculate_damage(enemy, player, 0, 3)
@@ -362,6 +393,13 @@ def choice_ask(player, enemy, engine):
             player.streak_protected = True
             player.focus = 0
             typewriter("Your next wrong answer will not reduce streak.")
+
+    session_stats = getattr(player, "session_stats", None)
+    player.session_stats = session_stats
+    
+    stats = getattr(player, "session_stats", None)
+    if stats:
+        stats.record(q_type, correct)
 
     return True
 
@@ -848,3 +886,4 @@ def process_status_effects(entity):
         if effect.is_expired():
             effect.on_expire(entity)
             entity.status_effects.remove(effect)
+

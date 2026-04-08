@@ -20,6 +20,10 @@ from shop import shop
 from saveLoad import save_game, load_game, delete_save, save_exists
 from config import load_config, get_notes_paths, get_save_path, get_last_run_path
 from achievements import load_achievements, save_achievements, check_achievements, print_achievements
+from narrative import (show_opening, show_node_flavor, show_streak_comment,
+                       show_wrong_flavor, show_correct_flavor,
+                       show_tier_narrative, show_death_narrative,
+                       show_victory_narrative)
 
 CONFIG = load_config()
 NOTE_PATHS = get_notes_paths(CONFIG)
@@ -91,15 +95,85 @@ class PathNode:
         options = descriptions.get(self.node_type, ["An unknown path."])
         return random.choice(options)
 
-def generate_next_nodes(current_tier):
+def draw_run_map(nodes_cleared, current_tier, run_log, next_node_type=None):
+    """Display a visual map of run progression."""
+    clear_screen()
+    typewriter(f"\n{'='*50}")
+    typewriter(f"  RUN MAP  |  Tier {current_tier}/3  |  Node {nodes_cleared}")
+    typewriter(f"{'='*50}")
+
+    # Icon map for node types
+    icons = {
+        "battle": "[B]",
+        "elite":  "[E]",
+        "shop":   "[S]",
+        "maze":   "[M]",
+        "rest":   "[R]",
+        "boss":   "[!]",
+        "unknown":"[?]",
+    }
+
+    # Parse run_log to get past node types
+    past_nodes = []
+    for entry in run_log:
+        if "Defeated enemy" in entry:
+            past_nodes.append("battle")
+        elif "ELITE" in entry:
+            past_nodes.append("elite")
+        elif "shop" in entry.lower():
+            past_nodes.append("shop")
+        elif "maze" in entry.lower():
+            past_nodes.append("maze")
+        elif "Rested" in entry:
+            past_nodes.append("rest")
+        elif "BOSS" in entry:
+            past_nodes.append("boss")
+        elif "Fled" in entry:
+            past_nodes.append("battle")
+
+    # Build the map line
+    map_line = ""
+    for i, node_type in enumerate(past_nodes):
+        map_line += f"{icons.get(node_type, '[?]')}--"
+
+    # Current position marker
+    map_line += "[*]"
+
+    # Next node preview
+    if next_node_type:
+        map_line += f"--{icons.get(next_node_type, '[?]')}?"
+
+    typewriter(f"\n  {map_line}")
+
+    # Legend
+    typewriter("\n  Legend: [B]attle [E]lite [S]hop [M]aze [R]est [!]Boss [*]You")
+
+    # Tier progress bar
+    tier_fill = "#" * (nodes_cleared % 5) + "-" * (5 - (nodes_cleared % 5))
+    nodes_to_next = 5 - (nodes_cleared % 5)
+    typewriter(f"\n  Tier progress: [{tier_fill}] {nodes_to_next} nodes to Tier {min(current_tier+1, 3)}")
+    typewriter(f"{'='*50}\n")
+    time.sleep(0.5)
+
+def _check_mastery_bonus_node(player):
+    """If any mastery is high enough, offer a bonus knowledge trial node."""
+    for q_type, val in player.mastery.items():
+        if val >= 15:
+            return True
+    return False
+
+def generate_next_nodes(current_tier, player, nodes_cleared=0):
     node_count = random.choice([2, 3])
     nodes = []
 
     for _ in range(node_count):
-        # Boss only available from tier 3 onward
-        if current_tier >= 3:
+        # Boss only available from tier 3 onward AND after node 10
+        # Never appears before node 10 regardless of tier
+        boss_eligible = current_tier >= 3 and nodes_cleared >= 10
+
+        if boss_eligible:
             types = ["battle", "elite", "shop", "maze", "rest", "boss"]
-            weights = [40, 15, 15, 15, 10, 5]
+            weights = [35, 15, 15, 15, 10, 10]
         else:
             types = ["battle", "elite", "shop", "maze", "rest"]
             weights = [50, 10, 15, 15, 10]
@@ -109,12 +183,15 @@ def generate_next_nodes(current_tier):
         if node_type in ("elite", "boss"):
             tier += 1
 
+        if _check_mastery_bonus_node(player) and random.random() < 0.08:
+            nodes.append(PathNode("trial", tier=current_tier))
+
         nodes.append(PathNode(node_type, tier=tier))
 
     return nodes
 
-def choose_next_path(current_tier, player):
-    nodes = generate_next_nodes(current_tier)
+def choose_next_path(current_tier, player, nodes_cleared=0):
+    nodes = generate_next_nodes(current_tier, player)
 
     typewriter("\nChoose your next destination:")
     typewriter("(Type 'c' to view your character sheet)")
@@ -140,6 +217,44 @@ def choose_next_path(current_tier, player):
                 return nodes[choice - 1]
 
         typewriter("Invalid choice. Select a valid number or 'c' for character.")
+
+class SessionStats:
+    """Tracks learning statistics for the current run."""
+    def __init__(self):
+        self.correct = 0
+        self.wrong = 0
+        self.by_type = {t: {"correct": 0, "wrong": 0} for t in ["TF", "MC", "AR", "ID", "OD"]}
+
+    def record(self, q_type, was_correct):
+        if was_correct:
+            self.correct += 1
+            self.by_type.setdefault(q_type, {"correct": 0, "wrong": 0})["correct"] += 1
+        else:
+            self.wrong += 1
+            self.by_type.setdefault(q_type, {"correct": 0, "wrong": 0})["wrong"] += 1
+
+    def accuracy(self):
+        total = self.correct + self.wrong
+        return int((self.correct / total) * 100) if total > 0 else 0
+
+    def print_summary(self):
+        from ui import typewriter
+        total = self.correct + self.wrong
+        typewriter(f"\n--- Learning Summary ---")
+        typewriter(f"  Questions answered: {total}")
+        typewriter(f"  Correct: {self.correct} | Wrong: {self.wrong}")
+        typewriter(f"  Accuracy: {self.accuracy()}%")
+        typewriter(f"\n  By category:")
+        for q_type, counts in self.by_type.items():
+            t = counts["correct"] + counts["wrong"]
+            if t == 0:
+                continue
+            acc = int((counts["correct"] / t) * 100)
+            bar = "#" * (acc // 10) + "-" * (10 - acc // 10)
+            category = {"TF": "True/False", "MC": "Multi-Choice",
+                        "AR": "Arithmetic", "ID": "Identification",
+                        "OD": "Ordering"}.get(q_type, q_type)
+            typewriter(f"  {category:15} [{bar}] {acc}% ({t} answered)")
 
 def create_character():
     typewriter("\n=== Character Creation ===")
@@ -416,6 +531,7 @@ def main_game():
         player.skills = create_skill_pool()
         engine.wrong_answers.clear()
         choose_run_modifier(player)
+        show_opening(player.name, getattr(player, "class_name", "Adventurer"))
 
     typewriter("=" * 60)
     typewriter("\nWelcome to the Game-on Learning demo!")
@@ -440,14 +556,24 @@ def main_game():
         # -------------------------
         # Determine next node
         # -------------------------
-        if nodes_cleared == 1:
+        # Guaranteed boss at node 15
+        if nodes_cleared == 15:
+            typewriter("\n" + "="*50)
+            typewriter("  A darkness unlike anything before stirs ahead.")
+            typewriter("  You sense this is where it all ends.")
+            typewriter("="*50)
+            time.sleep(2)
+            next_node = PathNode("boss", tier=current_tier + 1)
+        elif nodes_cleared == 1:
             next_node = PathNode("battle", tier=current_tier)
         elif nodes_cleared == 2:
             next_node = PathNode(random.choice(["battle", "rest"]), tier=current_tier)
         else:
             next_node = choose_next_path(current_tier, player)
 
-        typewriter(f"\nYou proceed toward: {next_node.node_type.upper()}")
+        draw_run_map(nodes_cleared, current_tier, run_log, next_node.node_type)
+        show_node_flavor(next_node.node_type)
+        typewriter(f"You proceed toward: {next_node.node_type.upper()}")
         time.sleep(0.5)
 
         # -------------------------
@@ -460,6 +586,7 @@ def main_game():
                 run_context["no_damage_battle"] = True
 
             if result == DEATH:
+                show_death_narrative(player.name, battles_won, player.longest_streak)
                 typewriter("\n=== GAME OVER ===")
                 game_over_screen()
                 return
@@ -563,6 +690,7 @@ def main_game():
                 return
             else:
                 battles_won += 1
+                show_victory_narrative(player.name, battles_won, player.longest_streak)
                 typewriter("\n*** BOSS DEFEATED — YOU WIN THE RUN! ***")
                 player.gain_xp(200 + current_tier * 20)
                 player.apply_gold(100 + current_tier * 20)
@@ -596,6 +724,11 @@ def main_game():
 
             run_log.append(f"Node {nodes_cleared}: Rested (+HP)")
 
+        elif next_node.node_type == "trial":
+            typewriter("\nA Knowledge Trial appears — a chance to prove your mastery.")
+            quiz_trial(player, engine)
+            run_log.append(f"Node {nodes_cleared}: Completed Knowledge Trial")
+
         save_game(player, {
             "tier": current_tier,
             "battles_won": battles_won,
@@ -616,6 +749,7 @@ def main_game():
             typewriter(f"  TIER {current_tier} REACHED")
             typewriter(f"  Enemies grow stronger from here.")
             typewriter(f"{'='*40}")
+            show_tier_narrative(current_tier)
             time.sleep(1.5)
 
         player.hp = min(player.max_hp, player.hp + int(player.max_hp * 0.05))
@@ -632,6 +766,9 @@ def main_game():
     typewriter(f"Nodes Cleared: {nodes_cleared}")
     typewriter(f"Final Gold: {player.gold}")
     typewriter(f"Highest Streak: {player.longest_streak}")
+    session_stats = SessionStats()
+    session_stats.print_summary()
+    engine.print_review()
 
     engine.print_review()
 

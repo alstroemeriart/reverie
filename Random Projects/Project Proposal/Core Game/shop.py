@@ -1,4 +1,5 @@
-# shop.py
+# SHOP
+
 from ui import typewriter, clear_screen
 from items import (
     HealingPotion, AttackBoost, HintPotion,
@@ -224,3 +225,4 @@ def _sell_item(player):
         typewriter(f"Gold: {player.gold}")
     else:
         typewriter("Invalid choice.")
+

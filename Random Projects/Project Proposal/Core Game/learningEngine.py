@@ -97,6 +97,15 @@ class LearningEngine:
                         "AR": "Arithmetic", "ID": "Identification"}.get(qtype, qtype)
             typewriter(f"  {category}: {count} wrong")
 
+    def get_consecutive_wrong(self):
+        """Check if the last 2 wrong answers were the same question."""
+        if len(self.wrong_answers) >= 2:
+            last = self.wrong_answers[-1]["question"]
+            second = self.wrong_answers[-2]["question"]
+            if last == second:
+                return self.wrong_answers[-1]
+        return None
+
     def load_notes(self, filepath, qtype="TF", difficulty=1):
         """
         Load questions from a notes file.

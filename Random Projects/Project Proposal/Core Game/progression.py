@@ -1,4 +1,4 @@
-# progression.py
+# PROGRESSION
 
 # -----------------------------
 # MASTERY SYSTEM

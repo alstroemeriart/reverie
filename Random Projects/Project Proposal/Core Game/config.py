@@ -1,3 +1,5 @@
+# CONFIG
+
 import json
 import os
 from ui import typewriter
@@ -159,3 +161,4 @@ def setup_wizard():
         raise SystemExit
 
     return config
+

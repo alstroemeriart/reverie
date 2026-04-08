@@ -71,4 +71,3 @@ def print_achievements(unlocked):
         status = "X" if ach["id"] in unlocked else " "
         typewriter(f"  [{status}] {ach['name']} — {ach['desc']}")
 
-        

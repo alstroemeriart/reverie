@@ -1,3 +1,5 @@
+# ITEMS
+
 from statusEffects import StatusEffect
 from ui import typewriter
 import random
