@@ -1,4 +1,8 @@
-# ENEMY POOL
+"""Enemy generation and spawning system.
+
+Generates random enemies grouped by tier, scales enemies to player level,
+and manages enemy templates and difficulty scaling.
+"""
 
 import random
 from Spawns import Enemy
@@ -44,9 +48,17 @@ ELITES = [
 # Generate Enemy
 # -------------------------
 def generate_random_enemy(tier=1, elite_chance=0.1):
-    """
-    tier: 1, 2, or 3
-    elite_chance: % chance to spawn elite
+    """Generate a random enemy from the specified tier pool.
+    
+    Args:
+        tier (int): Enemy tier (1-3). Higher tiers have stronger enemies.
+        elite_chance (float): Probability (0-1) of spawning an elite enemy.
+    
+    Returns:
+        Enemy: A newly created Enemy instance with randomized template stats.
+    
+    Raises:
+        ValueError: If tier is not 1, 2, or 3.
     """
 
     if random.random() < elite_chance:
@@ -72,9 +84,18 @@ def generate_random_enemy(tier=1, elite_chance=0.1):
     )
 
 def scale_enemy(enemy, nodes_cleared, tier):
-    """
-    Lightly scale enemy stats based on how far into the run we are.
-    Prevents early enemies from feeling trivial late-game.
+    """Scale enemy stats based on run progression.
+    
+    Lightly increases enemy stats to prevent early enemies from feeling trivial
+    later in the run. Defense scales slower than HP/ATK to avoid power creep.
+    
+    Args:
+        enemy (Enemy): The enemy to scale.
+        nodes_cleared (int): Number of nodes/rooms already completed in run.
+        tier (int): Current enemy tier (affects scaling magnitude).
+    
+    Returns:
+        Enemy: The modified enemy instance with scaled stats.
     """
     scaling = 1 + (nodes_cleared * 0.03) + (tier * 0.1)
     enemy.max_hp = int(enemy.max_hp * scaling)

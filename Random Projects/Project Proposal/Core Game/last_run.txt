@@ -1,0 +1,5 @@
+Battles Won: 15
+Nodes Cleared: 15
+Highest Streak: 9
+Final Gold: 520
+Final Level: 5

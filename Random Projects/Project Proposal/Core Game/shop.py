@@ -1,15 +1,20 @@
-# SHOP
+"""Shop and merchant system.
 
-from ui import typewriter, clear_screen
+Manages the in-game shop, item inventory, purchasing, pricing, and merchant interactions
+during runs. Uses GUI buttons for all choices.
+"""
+
+import random
+import time
+
+from ui import typewriter, clear_screen, input_handler, emit_player_stats
 from items import (
     HealingPotion, AttackBoost, HintPotion,
     DefenseBoost, MegaHealingPotion, SpeedBoost,
     PoisonBomb, FreezeScroll, WeaknessCurse,
     DoubleGoldCharm, RevivalStone, AllItems
 )
-import random, time
 
-# Full aid pool (can expand further later)
 ITEM_POOL = [
     HealingPotion,
     AttackBoost,
@@ -37,13 +42,7 @@ def get_merchant_greeting(player):
 
 
 def _build_stock(player):
-    """
-    Generate the shop's stock for one visit.
-    Returns a list of slot dicts. Called once per shop visit.
-    """
     stock = []
-
-    # Pick 5 normal items
     num_items = min(5, len(ITEM_POOL))
     selected_classes = random.sample(ITEM_POOL, k=num_items)
 
@@ -57,7 +56,6 @@ def _build_stock(player):
             "mystery": False,
         })
 
-    # Add exactly one mystery slot at a slight discount
     mystery_class = random.choice(ITEM_POOL)
     mystery_instance = mystery_class()
     base_mystery_price = random.randint(15, 60)
@@ -73,7 +71,6 @@ def _build_stock(player):
 
 
 def _get_rarity(item_instance):
-    """Look up an item's rarity string from AllItems."""
     for entry in AllItems:
         if isinstance(item_instance, entry["class"]):
             return entry["rarity"]
@@ -81,11 +78,6 @@ def _get_rarity(item_instance):
 
 
 def _display_stock(stock, player):
-    """
-    Print the current shop stock and return slot_map,
-    sell_num, and leave_num for input handling.
-    """
-    clear_screen()
     typewriter("\n=== Welcome to the Shop ===")
     typewriter(f"HP:   {player.hp}/{player.max_hp}")
     typewriter(f"Gold: {player.gold}")
@@ -97,17 +89,13 @@ def _display_stock(stock, player):
 
     for i, slot in enumerate(stock):
         if slot["sold"]:
-            if slot["mystery"]:
-                typewriter(f"  -. ??? — SOLD OUT")
-            else:
-                typewriter(f"  -. {slot['item'].name} — SOLD OUT")
-
+            label = "???" if slot["mystery"] else slot["item"].name
+            typewriter(f"  -. {label} — SOLD OUT")
         elif slot["mystery"]:
             rarity = _get_rarity(slot["item"])
             typewriter(f"  {display_num}. ??? [{rarity}] — {slot['price']} gold  (mystery item)")
             slot_map[display_num] = i
             display_num += 1
-
         else:
             desc = getattr(slot["item"], "description", "")
             typewriter(f"  {display_num}. {slot['item'].name} — {slot['price']} gold")
@@ -116,7 +104,7 @@ def _display_stock(stock, player):
             slot_map[display_num] = i
             display_num += 1
 
-    sell_num = display_num
+    sell_num  = display_num
     leave_num = display_num + 1
     typewriter(f"  {sell_num}. Sell an item")
     typewriter(f"  {leave_num}. Leave shop")
@@ -125,33 +113,52 @@ def _display_stock(stock, player):
 
 
 def shop(player):
-    """Roguelite shop with fixed stock per visit that depletes as items are bought."""
-
+    """Roguelite shop — uses ask_choice() for GUI button support."""
+    # Debug mode: skip shop
+    if getattr(player, "debug_mode", False):
+        typewriter("[DEBUG AUTO-PLAY] Skipping shop...")
+        time.sleep(0.3)
+        return
+    
     typewriter(get_merchant_greeting(player))
     time.sleep(0.5)
 
-    # Build stock once for the entire visit
     stock = _build_stock(player)
 
     while True:
-
-        # Check if everything is sold out before displaying
         available = [s for s in stock if not s["sold"]]
         if not available:
-            clear_screen()
             typewriter("\nThe merchant shrugs. \"Sold out — come back next time.\"")
             time.sleep(1.5)
             return
 
         slot_map, sell_num, leave_num = _display_stock(stock, player)
 
-        choice = input("\n> ").strip()
+        # ── BUG FIX: build ask_choice options dynamically ──────────────────
+        options = []
+        display_num = 1
+        for i, slot in enumerate(stock):
+            if slot["sold"]:
+                continue
+            if slot["mystery"]:
+                rarity = _get_rarity(slot["item"])
+                label = f"{display_num}. ??? [{rarity}] — {slot['price']}g"
+            else:
+                label = f"{display_num}. {slot['item'].name} — {slot['price']}g"
+            options.append({"label": label, "value": str(display_num)})
+            display_num += 1
+
+        options.append({"label": f"{sell_num}. Sell an item", "value": str(sell_num)})
+        options.append({"label": f"{leave_num}. Leave shop",  "value": str(leave_num)})
+
+        raw = input_handler.ask_choice(options, "\n> ")
         try:
-            choice = int(choice)
+            choice = int(raw)
         except ValueError:
             typewriter("Invalid choice.")
             time.sleep(0.5)
             continue
+        # ──────────────────────────────────────────────────────────────────
 
         if choice == leave_num:
             typewriter("Leaving shop...")
@@ -182,18 +189,18 @@ def shop(player):
                     typewriter(f"You bought {slot['item'].name}!")
 
                 typewriter(f"Gold remaining: {player.gold}")
+                emit_player_stats(player)
                 time.sleep(0.5)
             else:
                 typewriter("Not enough gold!")
                 time.sleep(0.5)
-
         else:
             typewriter("Invalid choice.")
             time.sleep(0.5)
 
 
 def _sell_item(player):
-    """Let the player sell an item from their inventory for half its price."""
+    """Sell menu — uses ask_choice() for GUI button support."""
     if not player.inventory:
         typewriter("You have nothing to sell.")
         return
@@ -205,15 +212,26 @@ def _sell_item(player):
         typewriter(f"  {i}. {item.name} — sells for {sell_price} gold")
         if desc:
             typewriter(f"      {desc}")
-    typewriter(f"  {len(player.inventory) + 1}. Cancel")
+    cancel_num = len(player.inventory) + 1
+    typewriter(f"  {cancel_num}. Cancel")
 
+    # ── BUG FIX: use ask_choice so GUI renders buttons ─────────────────────
+    options = [
+        {"label": f"{i}. {item.name}  ({item.price // 2}g)",
+         "value": str(i)}
+        for i, item in enumerate(player.inventory, 1)
+    ]
+    options.append({"label": f"{cancel_num}. Cancel", "value": str(cancel_num)})
+
+    raw = input_handler.ask_choice(options, "> ")
     try:
-        choice = int(input("> ").strip())
+        choice = int(raw)
     except ValueError:
         typewriter("Invalid choice.")
         return
+    # ──────────────────────────────────────────────────────────────────────
 
-    if choice == len(player.inventory) + 1:
+    if choice == cancel_num:
         typewriter("Cancelled.")
         return
 
@@ -223,6 +241,6 @@ def _sell_item(player):
         player.gold += sell_price
         typewriter(f"Sold {item.name} for {sell_price} gold.")
         typewriter(f"Gold: {player.gold}")
+        emit_player_stats(player)
     else:
         typewriter("Invalid choice.")
-

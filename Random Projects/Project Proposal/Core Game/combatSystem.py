@@ -1,26 +1,91 @@
-# COMBAT SYSTEM
+"""Combat system module.
 
-import random, time
-from ui import typewriter, clear_screen, hp_bar, bus, input_handler
-from Spawns import Spawn
+Manages turn-based combat flow including player/enemy turns, damage
+calculation, status effect processing, and question resolution in combat.
+"""
+
+import random
+import time
+
+from ui import (
+    typewriter, clear_screen, hp_bar, bus,
+    input_handler, emit_player_stats
+)
 from combatCalc import calculate_damage, check_dodge, check_critical
-from items import Aid
-from progression import gain_mastery, mastery_multiplier, apply_skills, unlock_skills
+from progression import (
+    gain_mastery, mastery_multiplier, apply_skills, unlock_skills
+)
 
-# -----------------------------
-# Combat States
-# -----------------------------
+# ─────────────────────────────────────────────
+# Combat state constants
+# ─────────────────────────────────────────────
 CONTINUE = "continue"
-ESCAPED = "escaped"
-WIN = "win"
-DEATH = "death"
+ESCAPED  = "escaped"
+WIN      = "win"
+DEATH    = "death"
 
-# -----------------------------
-# Damage line helper
-# -----------------------------
-# In damage_line:
+CATEGORY_NAMES = {
+    "TF": "True/False",
+    "MC": "Multiple Choice",
+    "AR": "Arithmetic",
+    "ID": "Identification",
+    "FB": "Fill in the Blanks",
+    "OD": "Ordering",
+}
+
+
+def _set_action_ui(action=False, boss=False):
+    """Enable or disable action buttons in the GUI.
+    
+    Args:
+        action: Whether to enable standard action buttons.
+        boss: Whether to enable boss-specific action buttons.
+    """
+    bus.game_event("action_buttons", enabled=action)
+    bus.game_event("boss_actions", enabled=boss)
+
+
+def _emit_enemy_panel(entity, role="enemy"):
+    """Send enemy stats to GUI for display in enemy panel.
+    
+    Args:
+        entity: The entity (enemy or boss) to display.
+        role: Entity type label ('enemy', 'boss', 'elite', etc).
+    """
+    bus.game_event(
+        "enemy_update",
+        target_name=entity.name,
+        role=role,
+        hp=entity.hp,
+        max_hp=entity.max_hp,
+        atk=entity.atk,
+        defense=entity.defense,
+        spd=entity.spd,
+        crit_chance=getattr(entity, "crit_chance", 0),
+        shield=getattr(entity, "shield", 0),
+        behavior=getattr(entity, "behavior", ""),
+        status_effects=[e.name for e in getattr(entity, "status_effects", [])],
+    )
+
+
+def _clear_enemy_panel():
+    """Clear the enemy panel display on the GUI."""
+    bus.game_event("enemy_clear")
+
+
+# ─────────────────────────────────────────────
+# Display helpers
+# ─────────────────────────────────────────────
+
 def damage_line(attacker_name, target, dmg):
-    ratio = dmg / target.max_hp
+    """Display damage result and classify severity.
+    
+    Args:
+        attacker_name: Name of the attacker.
+        target: Target entity taking damage.
+        dmg: Damage amount dealt.
+    """
+    ratio = dmg / max(1, target.max_hp)
     if ratio >= 0.25:
         msg = f"HEAVY HIT! {attacker_name} deals {dmg} damage!"
     elif ratio >= 0.10:
@@ -31,16 +96,20 @@ def damage_line(attacker_name, target, dmg):
     bus.combat_event("damage", attacker=attacker_name,
                      target=target.name, amount=dmg,
                      severity="heavy" if ratio >= 0.25 else "normal")
+    if not hasattr(target, "streak"):
+        _emit_enemy_panel(target, role=getattr(target, "_panel_role", "enemy"))
 
 
-# -----------------------------
-# Display stats function
-# -----------------------------
-def display_entity_stats(entity):
-    clear_screen()
+def display_entity_stats(entity, role=None):
+    """Print entity stats and optionally update GUI panel.
+    
+    Args:
+        entity: Character or enemy to display.
+        role: Optional role label for GUI panel update.
+    """
     typewriter(f"\n--- {entity.name} ---")
     typewriter(f"HP:  {hp_bar(entity.hp, entity.max_hp)}")
-    if hasattr(entity, "shield") and entity.shield > 0:
+    if entity.shield > 0:
         typewriter(f"Shield: {entity.shield}")
     typewriter(f"ATK: {entity.atk} | DEF: {entity.defense} | SPD: {entity.spd}")
     typewriter(f"CRIT: {int(entity.crit_chance * 100)}%")
@@ -54,145 +123,89 @@ def display_entity_stats(entity):
         typewriter(f"Status: {effects}")
     else:
         typewriter("Status: None")
-    time.sleep(0.5)
+    if role is not None:
+        setattr(entity, "_panel_role", role)
+        _emit_enemy_panel(entity, role=role)
+    time.sleep(0.3)
 
 
-# -----------------------------
-# Player turn
-# -----------------------------
-def player_turn(player, enemy, learning_engine):
-
-    if getattr(player, "is_stunned", False):
-        typewriter(f"{player.name} is stunned and cannot act!")
-        player.action_points = 0
-        return CONTINUE
-
-    # Refresh action points at the start of the turn
-    player.action_points = player.max_action_points
-
-    while player.action_points > 0:
-        typewriter(f"\n{player.name}'s turn! AP: {player.action_points}/{player.max_action_points}")
-        typewriter("1. Attack  (costs 2 AP — uses whole turn)")
-        typewriter("2. Ask     (costs 1 AP — can act again after)")
-        typewriter(f"3. Aid     (costs 1 AP) [{len(player.inventory)} aids available]")
-        typewriter("4. Abstain (costs 0 AP — ends turn, with penalty)")
-        typewriter("5. Abilities (costs 0 AP — view unlocked abilities)")
-
-        choice = input("> ").strip()
-
-        if choice == "1":
-            if player.action_points < 2:
-                typewriter("Not enough AP for a full attack! (need 2)")
-                continue
-            choice_attack(player, enemy)
-            player.action_points = 0          # uses the whole turn
-
-        elif choice == "2":
-            choice_ask(player, enemy, learning_engine)
-            player.action_points -= 1         # can still act if AP remains
-
-        elif choice == "3":
-            choice_aid(player)
-            player.action_points -= 1
-
-        elif choice == "4":
-            return choice_abstain(player, enemy)  # run can still escape mid-turn
-
-        elif choice == "5":
-            _view_skills(player)
-            continue
-
+def _view_skills(player):
+    typewriter("\n--- Your Skills ---")
+    if not player.skills:
+        typewriter("No skills available.")
+        return
+    for skill in player.skills:
+        if skill.unlocked:
+            typewriter(f"  [UNLOCKED] {skill.name} ({skill.tree} tree)")
         else:
-            typewriter("Invalid choice. Enter 1-4.")
-            continue
+            current = player.mastery.get(skill.tree, 0)
+            typewriter(f"  [locked]   {skill.name} ({skill.tree} mastery: {current}/5)")
+    time.sleep(0.3)
 
-        # Check if combat ended mid-turn
-        if enemy.hp <= 0 or player.hp <= 0:
-            break
 
-    return CONTINUE
+# ─────────────────────────────────────────────
+# Question asking  (shared logic)
+# ─────────────────────────────────────────────
 
-# -----------------------------
-# Player actions
-# -----------------------------
-def choice_attack(player, enemy):
-    typewriter(f"\n{player.name} attacks {enemy.name}!")
-    time.sleep(0.5)
-
-    if check_dodge(player, enemy):
-        typewriter(f"{enemy.name} dodged the attack!")
-        return True
-
-    dmg, is_crit = calculate_damage(player, enemy)
-    enemy.take_dmg(dmg)
-
-    if is_crit:
-        typewriter("CRITICAL HIT!")
-    damage_line(player.name, enemy, dmg)
-
-    time.sleep(1)
-    return True
-
-def choice_ask(player, enemy, engine, engine_ref=None):
-    """Ask a random question from the learning engine."""
-
-    question_data = engine.get_random_question()
-    if not question_data:
-        typewriter("No questions loaded.")
-        return True
-
-    q_type = question_data["type"]
+def _ask_question(question_data, player):
+    """
+    Present one question to the player.
+    Returns True if correct, False otherwise.
+    """
+    # Disable auto-play during combat questions
+    input_handler.set_in_combat_question(True)
+    
+    q_type   = question_data["type"]
     question = question_data["question"]
-    answer = question_data["answer"]
+    answer   = question_data["answer"]
+    
+    # Debug mode: auto-answer all questions correctly
+    if getattr(player, "debug_mode", False):
+        diff_label = {1: "easy", 2: "medium", 3: "hard"}.get(
+            question_data.get("difficulty", 1), "?")
+        mastery_val = player.mastery.get(q_type, 0)
+        next_ms = ((mastery_val // 5) + 1) * 5
+        typewriter(f"\n[{CATEGORY_NAMES.get(q_type, q_type)} | "
+                   f"Mastery: {mastery_val} → {next_ms} | {diff_label}]")
+        typewriter(f"[DEBUG AUTO-ANSWER] {question}")
+        typewriter(f"[Correct Answer: {answer}]")
+        input_handler.set_in_combat_question(False)
+        return True
 
-    # Show category and mastery before the question
-    category_names = {
-        "TF": "True/False",
-        "MC": "Multiple Choice",
-        "AR": "Arithmetic",
-        "ID": "Identification"
-    }
+    diff_label = {1: "easy", 2: "medium", 3: "hard"}.get(
+        question_data.get("difficulty", 1), "?")
     mastery_val = player.mastery.get(q_type, 0)
-
-    next_milestone = ((mastery_val // 5) + 1) * 5
-    difficulty_label = {1: "easy", 2: "medium", 3: "hard"}.get(
-        question_data.get("difficulty", 1), "?"
-    )
-    typewriter(f"\n[{category_names.get(q_type, q_type)} | Mastery: {mastery_val} → {next_milestone} | {difficulty_label}]")
+    next_ms = ((mastery_val // 5) + 1) * 5
+    typewriter(f"\n[{CATEGORY_NAMES.get(q_type, q_type)} | "
+               f"Mastery: {mastery_val} → {next_ms} | {diff_label}]")
 
     correct = False
 
-    engine_ref = getattr(player, "engine_ref", None)
-    if engine_ref:
-            engine_ref.record_wrong(question_data)
-            repeat = engine_ref.get_consecutive_wrong()
-            if repeat:
-                typewriter(f"\n[This question has come up twice now.]")
-                typewriter(f"  Q: {repeat['question']}")
-                typewriter(f"  A: {repeat['correct_answer']}")
-                typewriter("[Take a moment to remember it.]")
-                time.sleep(1.5)
-
-    # -----------------------------
-    # Ask the question (hint applied inside each branch)
-    # -----------------------------
     if q_type == "TF":
         if player.hint_active:
-            typewriter(f"[Hint: the answer has {len(answer)} characters]")
             typewriter("[Hint: think carefully about whether this is always true]")
             player.hint_active = False
-        player_answer = input_handler.ask(f"{question} (True/False) > ")
-        correct = player_answer.lower() == answer.lower()
+        typewriter(question)
+        raw = input_handler.ask_choice(
+            [
+                {"label": "True", "value": "True"},
+                {"label": "False", "value": "False"},
+            ],
+            "(True/False) > ",
+        )
+        correct = raw.lower() == answer.lower()
 
     elif q_type == "MC":
-        options = question_data["options"]
-        if hasattr(player, "mc_eliminate") and player.mc_eliminate > 0:
+        options = list(question_data["options"])
+
+        if getattr(player, "mc_eliminate", 0) > 0:
             wrong = [o for o in options if o != answer]
             if wrong:
                 eliminated = random.choice(wrong)
                 options.remove(eliminated)
                 player.mc_eliminate = 0
                 typewriter(f"[Skill] Eliminated: {eliminated}")
+
         if player.hint_active:
             wrong = [o for o in options if o != answer]
             if wrong:
@@ -200,288 +213,349 @@ def choice_ask(player, enemy, engine, engine_ref=None):
                 options = [o for o in options if o != eliminated]
                 typewriter(f"[Hint: '{eliminated}' has been eliminated]")
             player.hint_active = False
+
         typewriter(question)
         for i, opt in enumerate(options, 1):
             typewriter(f"{i}. {opt}")
-        try:
-            choice = int(input("> ").strip())
-            correct = options[choice - 1] == answer
-        except (ValueError, IndexError):
-            correct = False
+        raw = input_handler.ask_choice(
+            [
+                {"label": f"{i}. {opt}", "value": opt, "log": f"{i}. {opt}"}
+                for i, opt in enumerate(options, 1)
+            ],
+            "> ",
+        )
+        if raw.isdigit():
+            try:
+                raw = options[int(raw) - 1]
+            except (ValueError, IndexError):
+                raw = ""
+        correct = raw.lower() == answer.lower()
 
-    elif q_type in ["AR", "ID"]:
-        # AR or ID
+    elif q_type in ("AR", "ID"):
         if player.hint_active:
-            typewriter(f"[Hint: the answer starts with '{answer[0]}' and has {len(answer)} character(s)]")
+            typewriter(f"[Hint: starts with '{answer[0]}', {len(answer)} character(s)]")
             player.hint_active = False
-        player_answer = input(f"{question} > ").strip()
-        correct = player_answer.lower() == answer.lower()
+        raw = input_handler.ask(f"{question} > ")
+        correct = raw.lower() == answer.lower()
+
+    elif q_type == "FB":
+        if player.hint_active:
+            typewriter(f"[Hint: starts with '{answer[0]}', {len(answer)} character(s)]")
+            player.hint_active = False
+        typewriter(question)
+        raw = input_handler.ask("> ")
+        correct = raw.lower() == answer.lower()
 
     elif q_type == "OD":
         items = question_data["items"]
-        typewriter(question)
         shuffled = items[:]
         random.shuffle(shuffled)
+        typewriter(question)
         for i, item in enumerate(shuffled, 1):
             typewriter(f"  {i}. {item}")
         typewriter("Enter the correct order as numbers (e.g. 3,1,4,2):")
         try:
-            raw = input("> ").strip()
+            raw   = input_handler.ask("> ")
             order = [int(x.strip()) - 1 for x in raw.split(",")]
             if len(order) != len(items):
                 correct = False
             else:
-                player_sequence = [shuffled[i] for i in order]
-                # answer is "1,2,3,4" = positions in original items list (1-indexed)
-                correct_sequence = [items[int(i) - 1] for i in question_data["answer"].split(",")]
-                correct = player_sequence == correct_sequence
+                player_seq  = [shuffled[i] for i in order]
+                correct_seq = [items[int(i) - 1] for i in answer.split(",")]
+                correct = player_seq == correct_seq
         except (ValueError, IndexError):
             correct = False
 
+    else:
+        typewriter(f"[Warning] Unknown question type '{q_type}' — skipping.")
+        input_handler.set_in_combat_question(False)
+        return False
+
+    # Re-enable auto-play after question is answered
+    input_handler.set_in_combat_question(False)
+    return correct
+
+
+def _apply_correct(player, q_type, enemy, engine):
+    """Handle streak, focus, mastery, passives, and damage after a correct answer."""
+    typewriter("Correct!")
+
+    gain_mastery(player, q_type)
+    player.streak += 1
+    player.longest_streak = max(player.longest_streak, player.streak)
+    unlock_skills(player)
+
+    focus_gain = 10 + int(player.wisdom * 0.2)
+    player.focus = min(player.max_focus, player.focus + focus_gain)
+    typewriter(f"Streak: {player.streak} | Focus: {player.focus}/{player.max_focus}")
+
+    try:
+        from narrative import show_streak_comment, show_correct_flavor
+        show_streak_comment(player.streak)
+        show_correct_flavor()
+    except ImportError:
+        pass
+
+    passive = getattr(player, "class_passive", "")
+    if passive == "bloodlust":
+        if player.bloodlust_stacks < 10:
+            player.atk += 1
+            player.bloodlust_stacks += 1
+            typewriter(f"[Bloodlust] ATK permanently increased to {player.atk}!")
+
+    elif passive == "momentum":
+        bonus = min(0.02 * player.streak, 0.30)
+        player._momentum_bonus = bonus
+        typewriter(f"[Momentum] Crit bonus this strike: +{int(bonus*100)}%")
+
+    elif passive == "luck":
+        if random.random() < 0.05:
+            gold = random.randint(5, 30)
+            player.gold += gold
+            typewriter(f"[Luck] Found {gold} gold!")
+        if random.random() < 0.03:
+            player.hint_active = True
+            typewriter("[Luck] Next question has a hint!")
+        if random.random() < 0.02:
+            player.streak += 1
+            typewriter("[Luck] Streak +1!")
+        if random.random() < 0.01:
+            player.focus = min(player.max_focus, player.focus + 20)
+            typewriter("[Luck] Focus +20!")
+        if random.random() < 0.005 and enemy is not None and enemy.is_alive():
+            typewriter("[Luck] Chance strikes your enemy!")
+            enemy.take_dmg(max(1, int(enemy.max_hp * 0.05)))
+            _emit_enemy_panel(enemy, role=getattr(enemy, "_panel_role", "enemy"))
+
+    mastery_val = player.mastery.get(q_type, 0)
+    if mastery_val > 0 and mastery_val % 5 == 0:
+        typewriter(f"Mastery milestone! {CATEGORY_NAMES.get(q_type, q_type)}: {mastery_val}")
+
+    emit_player_stats(player)
+
+    if enemy is not None and not check_dodge(player, enemy):
+        dmg, is_crit = calculate_damage(player, enemy, 1, 5)
+        dmg = int(dmg * mastery_multiplier(player, q_type))
+
+        ctx = {"type": "attack", "q_type": q_type, "damage": dmg, "correct": True}
+        apply_skills(player, ctx)
+        dmg = ctx["damage"]
+
+        if getattr(player, "run_modifier", "") == "scholar":
+            dmg = int(dmg * 2)
+            typewriter("[Scholar's Burden] Knowledge empowers your strike!")
+
+        enemy.take_dmg(dmg)
+        if is_crit:
+            typewriter("CRITICAL HIT!")
+        damage_line(player.name, enemy, dmg)
+    elif enemy is not None:
+        typewriter(f"{enemy.name} dodged the empowered strike!")
+
+
+def _apply_incorrect(player, q_type, enemy, engine, question_data):
+    """Handle streak loss, focus loss, and punishment after a wrong answer."""
+    typewriter("Incorrect!")
+
+    if engine is not None:
+        engine.record_wrong(question_data)
+        repeat = engine.get_consecutive_wrong()
+        if repeat:
+            typewriter("\n[This question came up twice in a row.]")
+            typewriter(f"  Q: {repeat['question']}")
+            typewriter(f"  A: {repeat['correct_answer']}")
+            typewriter("[Take a moment to remember it.]")
+            time.sleep(1.5)
+
+    try:
+        from narrative import show_wrong_flavor
+        show_wrong_flavor()
+    except ImportError:
+        pass
+
     passive = getattr(player, "class_passive", "")
 
-    # -----------------------------
-    # Resolve correct answer
-    # -----------------------------
-    if correct:
-        typewriter("Correct!") 
-        gain_mastery(player, q_type)
-
-        player.streak += 1
-        player.longest_streak = max(player.longest_streak, player.streak)
-        try:
-            from narrative import show_streak_comment, show_correct_flavor
-            show_streak_comment(player.streak)
-            show_correct_flavor()
-        except ImportError:
-            pass
-
-        unlock_skills(player)
-
-        focus_gain = 10 + int(player.wisdom * 0.2)
-        player.focus = min(player.max_focus, player.focus + focus_gain)
-
-        typewriter(f"Streak: {player.streak} | Focus: {player.focus}/{player.max_focus}")
-
-        if passive == "bloodlust":
-            if not hasattr(player, "bloodlust_stacks"):
-                player.bloodlust_stacks = 0
-            if player.bloodlust_stacks < 10:
-                player.atk += 1
-                player.bloodlust_stacks += 1
-                typewriter(f"[Bloodlust] ATK permanently increased to {player.atk}!")
-
-        elif passive == "momentum":
-            bonus_crit = min(0.02 * player.streak, 0.30)
-            player.crit_chance += bonus_crit
-            typewriter(f"[Momentum] Crit chance this strike: {int((player.crit_chance + bonus_crit)*100)}%")
-
-        elif passive == "luck":
-            if random.random() < 0.05:
-                gold_found = random.randint(5, 30)
-                player.gold += gold_found
-                typewriter(f"[Luck] It rained gold! You collected {gold_found} gold.")
-            if random.random() < 0.03:
-                player.hint_active = True
-                typewriter("[Luck] You feel lucky! Your next question will have a hint.")
-            if random.random() < 0.02:
-                player.streak += 1
-                typewriter("[Luck] Your luck spiked intellect! Streak increased by 1.")
-            if random.random() < 0.01:
-                player.focus = min(player.max_focus, player.focus + 20)
-                typewriter("[Luck] A surge of insight fills you! Focus increased by 20.")
-            if random.random() < 0.005:
-                typewriter("[Luck] The forces of chance fights for you!")
-                enemy.take_dmg(int(enemy.max_hp * 0.05))
-
-        # --- DAMAGE PHASE ---
-        if not check_dodge(player, enemy):
-            dmg, is_crit = calculate_damage(player, enemy, 1, 5)
-
-            # APPLY MASTERY SCALING
-            dmg = int(dmg * mastery_multiplier(player, q_type))
-
-            # APPLY SKILLS
-            context = {
-                "type": "attack",
-                "q_type": q_type,
-                "damage": dmg,
-                "correct": True
-            }
-
-            apply_skills(player, context)
-            dmg = context["damage"]
-
-            # Scholar modifier
-            if getattr(player, "run_modifier", "") == "scholar":
-                dmg = int(dmg * 2)
-                typewriter("[Scholar's Burden] Knowledge empowers your strike!")
-
-            enemy.take_dmg(dmg)
-
-            if is_crit:
-                typewriter("CRITICAL HIT!")
-
-            damage_line(player.name, enemy, dmg)
-
-    # -----------------------------
-    # Resolve incorrect answer
-    # -----------------------------
+    if passive == "fortress":
+        typewriter("[Fortress] Your defenses hold — no punishment attack.")
     else:
-        typewriter("Incorrect!")
-        engine.record_wrong(question_data)
+        if getattr(player, "run_modifier", "") == "cursed":
+            player.take_dmg(10)
+            typewriter("[Cursed Knowledge] -10 HP for wrong answer!")
 
-        if passive == "fortress":
-            typewriter("[Fortress] Your defenses hold — no punishment attack.")
+        if player.streak_protected:
+            typewriter("Your streak was protected!")
+            player.streak_protected = False
         else:
-            if getattr(player, "run_modifier", "") == "cursed":
-                player.take_dmg(10)
-                typewriter("[Cursed Knowledge] You take 10 HP from the wrong answer!")
+            player.streak = player.streak // 2
 
-            if player.streak_protected:
-                typewriter("Your streak was protected!")
-                player.streak_protected = False
-            else:
-                player.streak = player.streak // 2
+        player.focus = max(0, player.focus - 15)
+        typewriter(f"Streak → {player.streak} | Focus → {player.focus}/{player.max_focus}")
 
-            player.focus = max(0, player.focus - 15)
+        if enemy is not None and not check_dodge(enemy, player):
+            dmg, is_crit = calculate_damage(enemy, player, 0, 3)
+            player.take_dmg(dmg)
+            if is_crit:
+                typewriter("Enemy CRITICAL HIT!")
+            damage_line(enemy.name, player, dmg)
+        else:
+            typewriter("You dodged the punishment attack!")
 
-            typewriter(f"Streak reduced to {player.streak}")
-            typewriter(f"Focus: {player.focus}/{player.max_focus}")
-            try:
-                from narrative import show_wrong_flavor
-                show_wrong_flavor()
-            except ImportError:
-                pass
+    emit_player_stats(player)
 
-            if not check_dodge(enemy, player):
-                dmg, is_crit = calculate_damage(enemy, player, 0, 3)
-                player.take_dmg(dmg)
-                if is_crit:
-                    typewriter("Enemy CRITICAL HIT!")
-                damage_line(enemy.name, player, dmg)
-            else:
-                typewriter("You dodged the punishment attack!")
-
-            time.sleep(1)
-            return True
-
-    # -----------------------------
-    # Focus ability (only triggers after a correct answer)
-    # -----------------------------
-    if player.focus >= player.max_focus:
-        typewriter("\nFocus Ability Ready!")
-        typewriter("1. Massive Strike (2x dmg)")
-        typewriter("2. Heal 20% HP")
-        typewriter("3. Protect Streak")
-        ability = input("> ").strip()
-
-        if ability == "1":
-            dmg, _ = calculate_damage(player, enemy, 1, 5)
-            dmg *= 2
-            enemy.take_dmg(dmg)
-            player.focus = 0
-            damage_line("Massive Strike", enemy, dmg)
-
-        elif ability == "2":
-            heal = int(player.max_hp * 0.2)
-            player.hp = min(player.max_hp, player.hp + heal)
-            player.focus = 0
-            typewriter(f"You healed {heal} HP!")
-
-        elif ability == "3":
-            player.streak_protected = True
-            player.focus = 0
-            typewriter("Your next wrong answer will not reduce streak.")
-
-    session_stats = getattr(player, "session_stats", None)
-    player.session_stats = session_stats
-    
     stats = getattr(player, "session_stats", None)
     if stats:
-        stats.record(q_type, correct)
+        stats.record(q_type, False)
 
-    return True
+
+# ─────────────────────────────────────────────
+# Player actions
+# ─────────────────────────────────────────────
+
+def choice_attack(player, enemy):
+    typewriter(f"\n{player.name} attacks {enemy.name}!")
+    time.sleep(0.5)
+    if check_dodge(player, enemy):
+        typewriter(f"{enemy.name} dodged the attack!")
+        return
+    dmg, is_crit = calculate_damage(player, enemy)
+    enemy.take_dmg(dmg)
+    if is_crit:
+        typewriter("CRITICAL HIT!")
+    damage_line(player.name, enemy, dmg)
+    time.sleep(1)
+
+
+def choice_ask(player, enemy, engine):
+    """Ask a question and resolve all consequences."""
+    question_data = engine.get_random_question()
+    if not question_data:
+        typewriter("No questions loaded.")
+        return
+
+    q_type  = question_data["type"]
+    correct = _ask_question(question_data, player)
+
+    if correct:
+        _apply_correct(player, q_type, enemy, engine)
+        stats = getattr(player, "session_stats", None)
+        if stats:
+            stats.record(q_type, True)
+    else:
+        _apply_incorrect(player, q_type, enemy, engine, question_data)
+
+    if correct and player.focus >= player.max_focus:
+        _use_focus_ability(player, enemy)
+
+
+def _use_focus_ability(player, enemy):
+    typewriter("\nFocus Ability Ready!")
+    typewriter("1. Massive Strike (2x dmg)")
+    typewriter("2. Heal 20% HP")
+    typewriter("3. Protect Streak")
+    
+    # Auto-select for debug mode
+    if getattr(player, "debug_mode", False):
+        ability = "1"  # Always use Massive Strike
+        typewriter("[DEBUG AUTO-PLAY] Choosing: 1. Massive Strike")
+    else:
+        ability = input_handler.ask_choice(
+            [
+                {"label": "1. Massive Strike (2x dmg)", "value": "1"},
+                {"label": "2. Heal 20% HP", "value": "2"},
+                {"label": "3. Protect Streak", "value": "3"},
+            ],
+            "> ",
+        )
+    if ability == "1":
+        dmg, _ = calculate_damage(player, enemy, 1, 5)
+        dmg *= 2
+        enemy.take_dmg(dmg)
+        player.focus = 0
+        damage_line("Massive Strike", enemy, dmg)
+    elif ability == "2":
+        heal = int(player.max_hp * 0.2)
+        player.hp = min(player.max_hp, player.hp + heal)
+        player.focus = 0
+        typewriter(f"You healed {heal} HP!")
+    elif ability == "3":
+        player.streak_protected = True
+        player.focus = 0
+        typewriter("Your next wrong answer will not reduce streak.")
+    emit_player_stats(player)
+
 
 def choice_aid(player):
     if not player.inventory:
         typewriter("You have no aid!")
-        return True
-
+        return
     typewriter("\nYour Inventory:")
     for i, aid in enumerate(player.inventory, 1):
-        typewriter(f"{i}. {aid.name} — {aid.description}")
+        desc = getattr(aid, "description", "")
+        typewriter(f"{i}. {aid.name} — {desc}")
     typewriter(f"{len(player.inventory)+1}. Cancel")
-
     try:
-        choice = int(input("Choose an aid: ").strip())
-    except:
+        choice = int(input_handler.ask_choice(
+            [
+                {"label": f"{i}. {aid.name}", "value": str(i)}
+                for i, aid in enumerate(player.inventory, 1)
+            ] + [
+                {"label": f"{len(player.inventory) + 1}. Cancel", "value": str(len(player.inventory) + 1)}
+            ],
+            "Choose an aid: ",
+        ))
+    except ValueError:
         typewriter("Invalid choice.")
-        return True
-
-    if choice == len(player.inventory)+1:
+        return
+    if choice == len(player.inventory) + 1:
         typewriter("Cancelled.")
-        return True
-
-    if choice < 1 or choice > len(player.inventory):
+        return
+    if 1 <= choice <= len(player.inventory):
+        aid = player.inventory.pop(choice - 1)
+        typewriter(aid.use(player))
+        emit_player_stats(player)
+    else:
         typewriter("Invalid choice.")
-        return True
 
-    aid = player.inventory.pop(choice-1)
-    typewriter(aid.use(player))
-    return True
 
 def choice_abstain(player, enemy):
-    typewriter(f"\nAbstaining has consequences:")
-    typewriter(f"  - Lose 5-15 gold")
-    typewriter(f"  - Streak is halved")
-    typewriter(f"  - Vulnerable and Attack Down for 2 turns")
-    typewriter("Are you sure you want to abstain? (y/n)")
-    confirm = input("> ").strip().lower()
-
-    if confirm != "y":
+    typewriter("\nAbstaining has consequences:")
+    typewriter("  - Lose 5-15 gold")
+    typewriter("  - Streak is halved")
+    typewriter("  - Vulnerable and Attack Down for 2 turns")
+    confirm = input_handler.ask_choice(
+        [
+            {"label": "Yes", "value": "y"},
+            {"label": "No", "value": "n"},
+        ],
+        "Are you sure? (y/n) > ",
+    )
+    if confirm.lower() != "y":
         typewriter("You hold your ground.")
         return CONTINUE
-
-    typewriter(f"\n{player.name} attempts to abstain away...")
-    time.sleep(1)
 
     if getattr(player, "run_modifier", "") == "ironwill":
         typewriter("[Iron Will] You cannot escape. Face your enemy!")
         return CONTINUE
 
-    run_chance = 0.5 + (player.spd - enemy.spd) * 0.03
-    run_chance = min(0.9, max(0.1, run_chance))
+    typewriter(f"\n{player.name} attempts to abstain away...")
+    time.sleep(1)
 
+    run_chance = min(0.9, max(0.1, 0.5 + (player.spd - enemy.spd) * 0.03))
     if random.random() < run_chance:
-        typewriter("You successfully escaped, but at a cost!")
-        time.sleep(1)
-
+        typewriter("You escaped, but at a cost!")
         lost_gold = min(player.gold, random.randint(5, 15))
         player.gold -= lost_gold
         player.streak = max(0, player.streak // 2)
-
         from statusEffects import AttackDebuff, Vulnerable
-
-        attack_debuff = AttackDebuff(amount=5, duration=2)
-        attack_debuff.on_apply(player)
-        player.status_effects.append(attack_debuff)
-
-        vulnerable = Vulnerable(duration=2)
-        vulnerable.on_apply(player)
-        player.status_effects.append(vulnerable)
-
-        typewriter(f"You lost {lost_gold} Gold!")
-        typewriter("Your streak is halved!")
-        typewriter("You feel vulnerable and weaker for 2 turns!")
+        for effect in [AttackDebuff(5, 2), Vulnerable(2)]:
+            effect.on_apply(player)
+            player.status_effects.append(effect)
+        typewriter(f"Lost {lost_gold} gold! Streak halved! Vulnerable for 2 turns.")
+        emit_player_stats(player)
         time.sleep(1)
-
         return ESCAPED
-
     else:
         typewriter("Failed to escape!")
-        time.sleep(0.5)
-
         if not check_dodge(enemy, player):
             dmg, is_crit = calculate_damage(enemy, player, 0, 3)
             player.take_dmg(dmg)
@@ -490,32 +564,93 @@ def choice_abstain(player, enemy):
             damage_line(enemy.name, player, dmg)
         else:
             typewriter("You dodged the enemy's counterattack!")
-
+        emit_player_stats(player)
         time.sleep(1)
         return CONTINUE
 
-# -----------------------------
+
+# ─────────────────────────────────────────────
+# Player turn
+# ─────────────────────────────────────────────
+
+def player_turn(player, enemy, learning_engine):
+    if getattr(player, "is_stunned", False):
+        _set_action_ui(False, False)
+        typewriter(f"{player.name} is stunned and cannot act!")
+        return CONTINUE
+
+    player.action_points = player.max_action_points
+
+    while player.action_points > 0:
+        typewriter(f"\n{player.name}'s turn! AP: {player.action_points}/{player.max_action_points}")
+        typewriter("1. Attack  (costs 2 AP)")
+        typewriter("2. Ask     (costs 1 AP — can act again after)")
+        typewriter(f"3. Aid     (costs 1 AP) [{len(player.inventory)} available]")
+        typewriter("4. Abstain (costs 0 AP — escape with penalty)")
+        typewriter("5. Skills  (free — view unlocked abilities)")
+
+        # Auto-play for debug mode
+        if getattr(player, "debug_mode", False):
+            # Alternate between Ask (to answer questions) and Attack
+            choice = "2" if random.random() < 0.6 else "1"
+            typewriter(f"[DEBUG AUTO-PLAY] Choosing: {choice}")
+            time.sleep(0.3)
+        else:
+            _set_action_ui(True, False)
+            choice = input_handler.ask("> ")
+            _set_action_ui(False, False)
+
+        if choice == "1":
+            if player.action_points < 2:
+                typewriter("Not enough AP! (need 2)")
+                continue
+            choice_attack(player, enemy)
+            player.action_points = 0
+
+        elif choice == "2":
+            choice_ask(player, enemy, learning_engine)
+            player.action_points -= 1
+
+        elif choice == "3":
+            choice_aid(player)
+            player.action_points -= 1
+
+        elif choice == "4":
+            return choice_abstain(player, enemy)
+
+        elif choice == "5":
+            _view_skills(player)
+            continue
+
+        else:
+            typewriter("Invalid choice. Enter 1-5.")
+            continue
+
+        if enemy.hp <= 0 or player.hp <= 0:
+            break
+
+    return CONTINUE
+
+
+# ─────────────────────────────────────────────
 # Enemy turn
-# -----------------------------
+# ─────────────────────────────────────────────
+
 def enemy_turn(enemy, player):
     typewriter(f"\n{enemy.name}'s turn...")
     time.sleep(1)
 
-    # Reset temporary modifiers from last turn
-    if hasattr(enemy, "defense_bonus") and enemy.defense_bonus > 0:
+    if enemy.defense_bonus > 0:
         enemy.defense -= enemy.defense_bonus
         enemy.defense_bonus = 0
+    if enemy.behavior == "evasive" and enemy.dodge_modifier > 0:
+        enemy.dodge_modifier = max(0.0, enemy.dodge_modifier - 0.2)
 
-    if getattr(enemy, "behavior", "normal") == "evasive":
-        if hasattr(enemy, "dodge_modifier") and enemy.dodge_modifier > 0:
-            enemy.dodge_modifier = max(0, enemy.dodge_modifier - 0.2)
-
-    # Stun check
     if getattr(enemy, "is_stunned", False):
         typewriter(f"{enemy.name} is stunned and cannot act!")
         return CONTINUE
 
-    behavior = getattr(enemy, "behavior", "normal")
+    behavior = enemy.behavior
 
     if behavior == "aggressive":
         typewriter(f"{enemy.name} attacks furiously!")
@@ -531,55 +666,103 @@ def enemy_turn(enemy, player):
                 damage_line(enemy.name, player, dmg)
             else:
                 typewriter(f"{player.name} sidesteps the flurry!")
+        emit_player_stats(player)
         return CONTINUE
 
-    elif behavior == "evasive":
-        if random.random() < 0.3:
-            typewriter(f"{enemy.name} shifts into a defensive stance!")
-            if not hasattr(enemy, "dodge_modifier"):
-                enemy.dodge_modifier = 0
-            enemy.dodge_modifier += 0.2
-            return CONTINUE
+    if behavior == "evasive" and random.random() < 0.3:
+        typewriter(f"{enemy.name} shifts into a defensive stance!")
+        enemy.dodge_modifier += 0.2
+        return CONTINUE
 
-    elif behavior == "defensive":
-        if random.random() < 0.4:
-            typewriter(f"{enemy.name} braces for impact!")
-            enemy.defense += 3
-            enemy.defense_bonus = 3
-            # Still attacks after bracing
+    if behavior == "defensive" and random.random() < 0.4:
+        typewriter(f"{enemy.name} braces for impact!")
+        enemy.defense += 3
+        enemy.defense_bonus = 3
 
-    # Default attack (shared by normal, defensive after bracing, evasive if no dodge)
     if check_dodge(enemy, player):
         typewriter(f"{player.name} dodged the attack!")
         return CONTINUE
 
     dmg, is_crit = calculate_damage(enemy, player, -1, 2)
     player.take_dmg(dmg)
-
     if is_crit:
         typewriter("Enemy lands a CRITICAL HIT!")
     damage_line(enemy.name, player, dmg)
+    emit_player_stats(player)
     time.sleep(1)
     return CONTINUE
 
-# -----------------------------
-# Elite combat
-# -----------------------------
-def elite_combat(player, enemy, learning_engine):
-    """
-    Elite encounter: same loop as start_combat but the enemy has phases.
-    At 66% and 33% HP the elite gains stat boosts and announces a phase shift.
-    The player's streak bonus is doubled (handled inside calculate_damage via
-    streak_attack_bonus, which already scales with streak).
-    """
+
+# ─────────────────────────────────────────────
+# Status effects processor
+# ─────────────────────────────────────────────
+
+def process_status_effects(entity):
+    for effect in entity.status_effects[:]:
+        effect.on_turn_start(entity)
+        effect.on_turn_end(entity)
+        if effect.is_expired():
+            effect.on_expire(entity)
+            entity.status_effects.remove(effect)
+
+
+# ─────────────────────────────────────────────
+# Combat loops
+# ─────────────────────────────────────────────
+
+def _combat_loop(player, enemy, learning_engine):
+    hp_before = player.hp
+
+    while True:
+        display_entity_stats(player)
+        display_entity_stats(enemy, role="enemy")
+
+        result = player_turn(player, enemy, learning_engine)
+
+        if result == ESCAPED:
+            _set_action_ui(False, False)
+            _clear_enemy_panel()
+            return ESCAPED, False
+        if enemy.hp <= 0 or player.hp <= 0:
+            break
+
+        process_status_effects(player)
+        emit_player_stats(player)
+        if enemy.hp <= 0 or player.hp <= 0:
+            break
+
+        enemy_turn(enemy, player)
+        process_status_effects(enemy)
+        if enemy.hp <= 0 or player.hp <= 0:
+            break
+
+    if player.hp <= 0:
+        _set_action_ui(False, False)
+        _clear_enemy_panel()
+        typewriter("You were defeated...")
+        time.sleep(1)
+        return DEATH, False
+
+    _set_action_ui(False, False)
+    _clear_enemy_panel()
+    typewriter(f"{enemy.name} defeated!")
+    time.sleep(1)
+    no_damage = player.hp >= hp_before
+    typewriter(f"\n--- Battle Summary ---")
+    typewriter(f"HP: {player.hp}/{player.max_hp} | Streak: {player.streak}")
+    if no_damage:
+        typewriter("Flawless victory! No damage taken.")
+    time.sleep(0.5)
+    return WIN, no_damage
+
+
+def elite_combat(player, enemy, learning_engine, bestiary=None):
     phase = 1
     typewriter(f"\n*** ELITE ENCOUNTER: {enemy.name}! ***")
-    typewriter("This enemy is stronger than usual. Watch for phase shifts!")
+    typewriter("Watch for phase shifts!")
     time.sleep(1)
 
     while enemy.is_alive() and player.is_alive():
-
-        # Phase transitions
         hp_ratio = enemy.hp / enemy.max_hp
         if phase == 1 and hp_ratio <= 0.66:
             phase = 2
@@ -593,67 +776,76 @@ def elite_combat(player, enemy, learning_engine):
             time.sleep(1)
 
         display_entity_stats(player)
-        display_entity_stats(enemy)
+        display_entity_stats(enemy, role="elite")
 
         result = player_turn(player, enemy, learning_engine)
-
+        emit_player_stats(player)
         if result == ESCAPED:
+            _set_action_ui(False, False)
+            _clear_enemy_panel()
             typewriter("You escaped the elite battle!")
             return ESCAPED
-
         if enemy.hp <= 0:
+            _set_action_ui(False, False)
+            _clear_enemy_panel()
             typewriter(f"{enemy.name} defeated!")
+            if bestiary:
+                bestiary.record_kill(enemy.name)
             time.sleep(1)
             return WIN
-
         if player.hp <= 0:
+            _set_action_ui(False, False)
+            _clear_enemy_panel()
             typewriter("You were defeated...")
             time.sleep(1)
             return DEATH
 
-        process_status_effects(player)
-
         if enemy.hp <= 0:
+            _set_action_ui(False, False)
+            _clear_enemy_panel()
+            if bestiary:
+                bestiary.record_kill(enemy.name)
             return WIN
         if player.hp <= 0:
+            _set_action_ui(False, False)
+            _clear_enemy_panel()
             return DEATH
 
-        enemy_turn(enemy, player)
-        process_status_effects(enemy)
-
-        if player.hp <= 0:
-            return DEATH
         if enemy.hp <= 0:
+            _set_action_ui(False, False)
+            _clear_enemy_panel()
+            if bestiary:
+                bestiary.record_kill(enemy.name)
             return WIN
 
-    return DEATH if not player.is_alive() else WIN
+    _set_action_ui(False, False)
+    _clear_enemy_panel()
+    if enemy.hp <= 0 and bestiary:
+        bestiary.record_kill(enemy.name)
+    return WIN if enemy.hp <= 0 else DEATH
 
 
-# -----------------------------
-# Boss combat
-# -----------------------------
-def boss_combat(player, boss, learning_engine):
-    """
-    Main boss encounter.
-    The player cannot act freely — every action (attack, dodge, heal, focus)
-    requires answering a question first.
-    Correct answer = the action succeeds.
-    Wrong answer   = the action fails AND the boss immediately counterattacks.
-    The boss also has three phases triggered by HP thresholds.
-    """
+def boss_combat(player, boss, learning_engine, bestiary=None):
     typewriter(f"\n{'='*50}")
     typewriter(f"  BOSS ENCOUNTER: {boss.name}")
     typewriter(f"{'='*50}")
-    typewriter("You cannot act freely. Every move requires knowledge.")
+    typewriter("Every action requires answering a question.")
     typewriter("Answer correctly to act. Answer wrong — face the consequences.")
     time.sleep(2)
 
+    BOSS_TELLS = [
+        ("The boss winds up for a devastating blow...", "2"),
+        ("The boss looks exposed and off-balance...",   "1"),
+        ("Dark energy charges around the boss...",      "1"),
+        ("The boss begins to slowly regenerate...",     "1"),
+        ("The boss locks eyes on you, unblinking...",   "2"),
+        ("The boss staggers — now is your chance!",     "1"),
+    ]
+
     phase = 1
-    player.dodge_next = False   # flag for the evade action
+    player.dodge_next = False
 
     while boss.is_alive() and player.is_alive():
-
-        # Phase transitions
         hp_ratio = boss.hp / boss.max_hp
         if phase == 1 and hp_ratio <= 0.66:
             phase = 2
@@ -667,77 +859,78 @@ def boss_combat(player, boss, learning_engine):
             typewriter(f"\n{boss.name} PHASE 3: final form unleashed!")
             time.sleep(1)
 
-        # --- Boss telegraphs its next move ---
-        BOSS_TELLS = [
-            ("The boss winds up for a devastating blow...", "2"),   # evade
-            ("The boss looks exposed and off-balance...",  "1"),    # strike
-            ("Dark energy charges around the boss...",     "1"),    # strike
-            ("The boss begins to slowly regenerate...",    "1"),    # strike fast
-            ("The boss locks eyes on you, unblinking...",  "2"),    # evade
-            ("The boss staggers — now is your chance!",    "1"),    # strike
-        ]
-        tell_text, ideal_action = random.choice(BOSS_TELLS)
+        tell_text, ideal = random.choice(BOSS_TELLS)
         typewriter(f"\n{tell_text}")
         time.sleep(0.5)
 
         display_entity_stats(player)
-        display_entity_stats(boss)
+        display_entity_stats(boss, role="boss")
 
-        # --- Player chooses an action ---
-        typewriter(f"\n{player.name}'s turn — choose an action:")
-        typewriter("1. Strike  — answer to deal damage")
-        typewriter("2. Evade   — answer to dodge the boss's next attack")
-        typewriter("3. Restore — answer to heal 15% max HP")
-        typewriter("4. Focus   — answer to charge Focus ability (if ready, fires first)")
+        typewriter(f"\n{player.name}'s turn:")
+        typewriter("1. Strike  — deal damage")
+        typewriter("2. Evade   — dodge next attack")
+        typewriter("3. Restore — heal 15% HP")
+        typewriter("4. Focus   — use Focus ability")
 
-        choice = input("> ").strip()
+        _set_action_ui(False, True)
+        choice = input_handler.ask("> ")
+        _set_action_ui(False, False)
         if choice not in ("1", "2", "3", "4"):
             typewriter("Invalid choice. You hesitate — boss attacks!")
             _boss_attack(boss, player)
+            emit_player_stats(player)
             continue
 
-        # --- Ask a difficulty-3 question ---
-        q = learning_engine.get_question(difficulty=3)
+        q = learning_engine.get_question(difficulty=3) or learning_engine.get_question()
         if q is None:
-            q = learning_engine.get_question()  # fallback if no d3 questions exist yet
-        if q is None:
-            typewriter("No questions loaded. Boss attacks by default.")
+            typewriter("No questions loaded. Boss attacks.")
             _boss_attack(boss, player)
+            emit_player_stats(player)
             continue
 
-        correct = _ask_boss_question(q, player)
-        tell_matched = (choice == ideal_action)
+        correct = _ask_question(q, player)
+        tell_matched = (choice == ideal)
 
-        # --- Resolve the chosen action ---
+        if correct:
+            player.streak += 1
+            player.longest_streak = max(player.longest_streak, player.streak)
+            focus_gain = 10 + int(player.wisdom * 0.2)
+            player.focus = min(player.max_focus, player.focus + focus_gain)
+            typewriter(f"Correct! Streak: {player.streak} | Focus: {player.focus}/{player.max_focus}")
+        else:
+            typewriter(f"Wrong! The answer was: {q['answer']}")
+            if player.streak_protected:
+                typewriter("Streak protected!")
+                player.streak_protected = False
+            else:
+                player.streak = player.streak // 2
+            player.focus = max(0, player.focus - 10)
+
+        emit_player_stats(player)
+
         if choice == "1":
             if correct:
-                # Damage scales with difficulty — boss questions hit harder when right
                 dmg, is_crit = calculate_damage(player, boss, variance_low=2, variance_high=6)
-                dmg = int(dmg * 1.5)   # bonus for answering correctly under pressure
+                dmg = int(dmg * 1.5)
                 if tell_matched:
                     dmg = int(dmg * 1.3)
+                    typewriter("Perfect read! Bonus damage!")
                 boss.take_dmg(dmg)
-                if is_crit:
-                    typewriter("CRITICAL STRIKE!")
+                if is_crit: typewriter("CRITICAL STRIKE!")
                 damage_line(player.name, boss, dmg)
             else:
-                typewriter("Your strike misses! The boss punishes you.")
-                if tell_matched:
-                    typewriter("(You read the opening right, but fumbled the answer.)")
+                typewriter("Your strike misses!")
+                if tell_matched: typewriter("(Good read, wrong answer.)")
                 _boss_attack(boss, player)
 
         elif choice == "2":
             if correct:
                 player.dodge_next = True
-                if tell_matched:
-                    typewriter("Perfect read! You're completely prepared.")
-                    typewriter("Next attack will be dodged!")
-                else:
-                    typewriter("You prepare a dodge — but was this the right moment?")
+                typewriter("Perfect read! Next attack will be dodged!" if tell_matched
+                           else "You prepare a dodge.")
             else:
-                typewriter("You misread the opening. No dodge!")
-                if tell_matched:
-                    typewriter("(You saw the opening, but couldn't answer in time.)")
+                typewriter("No dodge!")
+                if tell_matched: typewriter("(Good read, wrong answer.)")
 
         elif choice == "3":
             if correct:
@@ -750,140 +943,63 @@ def boss_combat(player, boss, learning_engine):
         elif choice == "4":
             if player.focus >= player.max_focus:
                 if correct:
-                    typewriter("Focus ability activated!")
-                    typewriter("1. Massive Strike (2x dmg)")
-                    typewriter("2. Full Heal")
-                    typewriter("3. Protect Streak")
-                    ability = input("> ").strip()
-                    if ability == "1":
-                        dmg, _ = calculate_damage(player, boss, 2, 6)
-                        dmg = int(dmg * 2)
-                        boss.take_dmg(dmg)
-                        damage_line("Massive Strike", boss, dmg)
-                    elif ability == "2":
-                        player.hp = player.max_hp
-                        typewriter("Fully healed!")
-                    elif ability == "3":
-                        player.streak_protected = True
-                        typewriter("Streak protected!")
-                    player.focus = 0
+                    _use_focus_ability(player, boss)
                 else:
                     typewriter("Focus broken! No ability.")
             else:
-                typewriter(f"Focus not ready ({player.focus}/{player.max_focus}). Turn wasted!")
+                typewriter(f"Focus not ready ({player.focus}/{player.max_focus}).")
+
+        emit_player_stats(player)
 
         if boss.hp <= 0:
+            _clear_enemy_panel()
             typewriter(f"\n{boss.name} has been defeated!")
+            if bestiary:
+                bestiary.record_kill(boss.name)
             time.sleep(1)
             return WIN
-
         if player.hp <= 0:
+            _clear_enemy_panel()
             typewriter("\nYou were defeated by the boss...")
             time.sleep(1)
             return DEATH
 
-        # Process player status effects
         process_status_effects(player)
-
+        emit_player_stats(player)
         if player.hp <= 0:
+            _clear_enemy_panel()
             return DEATH
         if boss.hp <= 0:
+            _clear_enemy_panel()
+            if bestiary:
+                bestiary.record_kill(boss.name)
             return WIN
 
-        # --- Boss attacks (unless player has dodge flag) ---
         _boss_attack(boss, player)
+        emit_player_stats(player)
         process_status_effects(boss)
-
         if player.hp <= 0:
+            _clear_enemy_panel()
             return DEATH
 
-    return DEATH if not player.is_alive() else WIN
-
-
-def _ask_boss_question(q, player):
-    """Helper: ask one boss question, return True if correct."""
-    q_type = q["type"]
-    question = q["question"]
-    answer = q["answer"]
-
-    typewriter(f"\nBoss Challenge: {question}")
-
-    if q_type == "TF":
-        player_answer = input("(True/False) > ").strip()
-        correct = player_answer.lower() == answer.lower()
-    elif q_type == "MC":
-        options = q.get("options", [])
-        for i, opt in enumerate(options, 1):
-            typewriter(f"  {i}. {opt}")
-        try:
-            idx = int(input("> ").strip()) - 1
-            correct = options[idx] == answer
-        except (ValueError, IndexError):
-            correct = False
-    else:
-        player_answer = input("> ").strip()
-        correct = player_answer.lower() == answer.lower()
-
-    if correct:
-        player.streak += 1
-        player.longest_streak = max(player.longest_streak, player.streak)
-        focus_gain = 10 + int(player.wisdom * 0.2)
-        player.focus = min(player.max_focus, player.focus + focus_gain)
-        typewriter(f"Correct! Streak: {player.streak} | Focus: {player.focus}/{player.max_focus}")
-    else:
-        typewriter(f"Wrong! The answer was: {answer}")
-        if player.streak_protected:
-            typewriter("Streak protected!")
-            player.streak_protected = False
-        else:
-            player.streak = player.streak // 2
-        player.focus = max(0, player.focus - 10)
-
-    return correct
+    _set_action_ui(False, False)
+    _clear_enemy_panel()
+    return WIN if boss.hp <= 0 else DEATH
 
 
 def _boss_attack(boss, player):
-    """Helper: boss attacks the player, respecting dodge_next flag."""
-    if getattr(player, "dodge_next", False):
+    if player.dodge_next:
         typewriter(f"You dodge {boss.name}'s attack!")
         player.dodge_next = False
         return
-
     if check_dodge(boss, player):
         typewriter(f"You narrowly dodge {boss.name}'s strike!")
         return
-
     dmg, is_crit = calculate_damage(boss, player, variance_low=0, variance_high=4)
     player.take_dmg(dmg)
-
     if is_crit:
         typewriter(f"{boss.name} lands a CRITICAL HIT!")
     damage_line(boss.name, player, dmg)
     typewriter(f"({player.hp}/{player.max_hp} HP remaining)")
+    emit_player_stats(player)
     time.sleep(0.5)
-
-def _view_skills(player):
-    """Display the player's skill tree and unlock status."""
-    typewriter("\n--- Your Skills ---")
-    if not hasattr(player, "skills") or not player.skills:
-        typewriter("No skills available.")
-        return
-    for skill in player.skills:
-        if skill.unlocked:
-            typewriter(f"  [UNLOCKED] {skill.name} ({skill.tree} tree)")
-        else:
-            current = player.mastery.get(skill.tree, 0)
-            typewriter(f"  [locked]   {skill.name} ({skill.tree} mastery: {current}/5)")
-    time.sleep(0.5)
-
-# -----------------------------
-# Status effects
-# -----------------------------
-def process_status_effects(entity):
-    for effect in entity.status_effects[:]:
-        effect.on_turn_start(entity)
-        effect.on_turn_end(entity)
-        if effect.is_expired():
-            effect.on_expire(entity)
-            entity.status_effects.remove(effect)
-

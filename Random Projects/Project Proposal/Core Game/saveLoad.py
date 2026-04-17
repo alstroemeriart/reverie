@@ -1,4 +1,8 @@
-# SAVE/LOAD
+"""Save and load game state.
+
+Handles serializing and deserializing game state, including player character,
+inventory, progression, and run data.
+"""
 
 import json
 import os
@@ -22,6 +26,7 @@ def save_game(player, run_state, save_path="savegame.json"):
             "class_name": getattr(player, "class_name", ""),
             "class_passive": getattr(player, "class_passive", ""),
             "run_modifier": getattr(player, "run_modifier", ""),
+            "debug_mode": getattr(player, "debug_mode", False),
             "lvl": player.lvl,
             "exp": player.exp,
             "xp_to_next": player.xp_to_next,
@@ -71,9 +76,40 @@ def load_game(save_path="savegame.json"):
 
 
 def delete_save(save_path="savegame.json"):
-    """Remove the save file after a run ends."""
+    """Archive the save file as last completed run instead of deleting it."""
     if os.path.exists(save_path):
-        os.remove(save_path)
+        # Archive it as the "last completed run" instead of deleting
+        archive_path = save_path.replace(".json", "_completed.json")
+        try:
+            with open(save_path, "r") as f:
+                data = json.load(f)
+            with open(archive_path, "w") as f:
+                json.dump(data, f, indent=2)
+            # Now delete the active save
+            os.remove(save_path)
+            typewriter("Run archived. You can view your completion stats in the main menu.")
+        except Exception as e:
+            typewriter(f"Archive failed: {e}")
+            # Still try to delete the current save if archive failed
+            try:
+                os.remove(save_path)
+            except:
+                pass
+
+
+def load_completed_run(save_path="savegame.json"):
+    """Load the last completed run (archived save)."""
+    archive_path = save_path.replace(".json", "_completed.json")
+    if not os.path.exists(archive_path):
+        return None, None
+    
+    try:
+        with open(archive_path, "r") as f:
+            data = json.load(f)
+        return data["player"], data["run"]
+    except Exception as e:
+        typewriter(f"Failed to load completed run: {e}")
+        return None, None
 
 
 def save_exists(save_path="savegame.json"):

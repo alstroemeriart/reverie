@@ -1,0 +1,61 @@
+{
+  "player": {
+    "name": "igykhb",
+    "max_hp": 1019,
+    "hp": 1019,
+    "atk": 1002,
+    "defense": 1002,
+    "spd": 1001,
+    "wisdom": 999,
+    "crit_chance": 1,
+    "crit_multiplier": 10,
+    "class_name": "God Mode",
+    "class_passive": "",
+    "run_modifier": "scholar",
+    "debug_mode": true,
+    "lvl": 4,
+    "exp": 181,
+    "xp_to_next": 219,
+    "gold": 360,
+    "streak": 7,
+    "longest_streak": 9,
+    "focus": 0,
+    "max_focus": 100,
+    "mastery": {
+      "TF": 3,
+      "MC": 1,
+      "AR": 4,
+      "ID": 2,
+      "FB": 1,
+      "OD": 0
+    },
+    "action_points": 2,
+    "inventory": [
+      {
+        "name": "Healing Potion",
+        "price": 15
+      },
+      {
+        "name": "Attack Boost",
+        "price": 25
+      },
+      {
+        "name": "Hint Potion",
+        "price": 20
+      },
+      {
+        "name": "Weakness Curse",
+        "price": 30
+      },
+      {
+        "name": "Defense Boost",
+        "price": 25
+      }
+    ]
+  },
+  "run": {
+    "tier": 3,
+    "battles_won": 14,
+    "nodes_cleared": 14
+  }
+}

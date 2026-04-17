@@ -1,4 +1,8 @@
-# COMBAT CALCULATIONS
+"""Combat calculation utilities.
+
+Provides damage calculation, dodge/evasion checks, critical hit determination,
+and other mathematical operations used in combat resolution.
+"""
 
 import random
 

@@ -1,4 +1,8 @@
-# NARRATIVE
+"""Narrative and flavor text system.
+
+Provides story text, narrative flavor descriptions, tier narratives,
+battle scenarios, and branching narrative elements.
+"""
 
 import random
 import time

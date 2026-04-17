@@ -1,17 +1,43 @@
-# ITEMS
+"""Item and aid system.
+
+Defines all consumable and utility items including healing potions, stat boosts,
+status effect items, and special utility items used in combat and exploration.
+"""
 
 from statusEffects import StatusEffect
 from ui import typewriter
 import random
 
 class Aid:
-    """Base class for aid."""
+    """Base class for consumable and utility items.
+    
+    Attributes:
+        name: Display name of the item.
+        description: Short description of the item's effect.
+        price: Gold cost to purchase from shop.
+        flavor_texts: List of drop message templates.
+    """
     name = "Generic Aid"
     description = "Does something."
     price = 10
+    flavor_texts = ["You found a {name}!"]  # Drop messages
 
-    def use(self, user, target=None):
-        return f"{user.name} used {self.name}, but nothing happened."
+    def use(self, user, target=None) -> str:
+        """Apply the item's effect to the user.
+        
+        Args:
+            user: Character using the item.
+            target: Optional target for the item effect.
+        
+        Returns:
+            Message describing the item usage.
+        """
+        return ""
+    
+    def get_drop_message(self):
+        """Get a flavor text message for when item is dropped."""
+        message = random.choice(self.flavor_texts)
+        return message.format(name=self.name)
 
 
 # =========================
@@ -19,26 +45,40 @@ class Aid:
 # =========================
 
 class HealingPotion(Aid):
+    """Consumable item that restores 20 HP."""
     name = "Healing Potion"
     description = "Restores 20 HP."
     price = 15
+    flavor_texts = [
+        "The air smells of herbs. A {name} materializes.",
+        "A glowing vial of {name} drops before you.",
+        "Lucky! A {name} appears!"
+    ]
 
     def __init__(self, heal_amount=20):
         self.heal_amount = heal_amount
 
     def use(self, user, target=None):
+        """Restore hit points to the user."""
         user.heal(self.heal_amount)
         return f"{user.name} heals {self.heal_amount} HP!"
 
 class MegaHealingPotion(Aid):
+    """Consumable item that restores 50 HP (stronger healing)."""
     name = "Mega Healing Potion"
     description = "Restores 50 HP."
     price = 35
+    flavor_texts = [
+        "A surge of magical energy! {name} materializes!",
+        "You feel incredibly lucky... {name} drops!",
+        "The gods smile upon you. {name} appears!"
+    ]
 
     def __init__(self, heal_amount=50):
         self.heal_amount = heal_amount
 
     def use(self, user, target=None):
+        """Restore hit points to the user."""
         user.heal(self.heal_amount)
         return f"{user.name} restores {self.heal_amount} HP!"
 
@@ -47,9 +87,15 @@ class MegaHealingPotion(Aid):
 # =========================
 
 class AttackBoost(Aid):
+    """Consumable item that grants temporary ATK +5 buff for 3 turns."""
     name = "Attack Boost"
     description = "ATK +5 for 3 turns."
     price = 25
+    flavor_texts = [
+        "Your muscles tingle... {name} drops.",
+        "Power surges through the air. {name} appears!",
+        "A fierce aura materializes. {name} emerges!"
+    ]
 
     def __init__(self, boost_amount=5, duration=3):
         self.boost_amount = boost_amount
@@ -66,6 +112,11 @@ class DefenseBoost(Aid):
     name = "Defense Boost"
     description = "DEF +5 for 3 turns."
     price = 25
+    flavor_texts = [
+        "A barrier crystallizes before you. {name} appears!",
+        "Stone and steel shimmer... {name} drops.",
+        "An impenetrable aura surrounds you. {name} materializes!"
+    ]
 
     def __init__(self, boost_amount=5, duration=3):
         self.boost_amount = boost_amount
@@ -82,6 +133,11 @@ class SpeedBoost(Aid):
     name = "Speed Boost"
     description = "SPD +3 for 3 turns. Improves dodge."
     price = 30
+    flavor_texts = [
+        "Everything blurs into motion. {name} appears!",
+        "Wind swirls around you... {name} drops!",
+        "The world slows down. {name} materializes!"
+    ]
 
     def __init__(self, boost_amount=3, duration=3):
         self.boost_amount = boost_amount
@@ -102,6 +158,11 @@ class PoisonBomb(Aid):
     name = "Poison Bomb"
     description = "Poisons enemy for 4 turns (5 dmg/turn)."
     price = 30
+    flavor_texts = [
+        "A sickly purple haze settles... {name} drops!",
+        "The stench of corruption fills the air. {name} appears!",
+        "Toxic fumes swirl about. {name} materializes!"
+    ]
 
     def __init__(self, damage_per_turn=5, duration=4):
         self.damage_per_turn = damage_per_turn
@@ -120,6 +181,11 @@ class FreezeScroll(Aid):
     name = "Freeze Scroll"
     description = "Stuns enemy and lowers their DEF for 1 turn."
     price = 35
+    flavor_texts = [
+        "Ice crystals form before you. {name} appears!",
+        "Everything freezes in an instant... {name} drops!",
+        "A chilling wind blows. {name} materializes!"
+    ]
 
     def __init__(self, duration=1):
         self.duration = duration
@@ -137,6 +203,11 @@ class WeaknessCurse(Aid):
     name = "Weakness Curse"
     description = "Reduces enemy ATK by 5 for 3 turns."
     price = 30
+    flavor_texts = [
+        "A dark curse spreads... {name} drops!",
+        "Weakness seeps into your enemy. {name} appears!",
+        "The enemy's strength fades. {name} materializes!"
+    ]
 
     def __init__(self, reduction=5, duration=3):
         self.reduction = reduction
@@ -159,6 +230,11 @@ class HintPotion(Aid):
     name = "Hint Potion"
     description = "Gives a hint on your next question."
     price = 20
+    flavor_texts = [
+        "Clarity shines brightly... {name} drops!",
+        "Knowledge whispers around you. {name} appears!",
+        "The path forward becomes clear. {name} materializes!"
+    ]
 
     def use(self, user, target=None):
         user.hint_active = True
@@ -168,6 +244,11 @@ class DoubleGoldCharm(Aid):
     name = "Double Gold Charm"
     description = "Doubles gold earned for 3 turns."
     price = 40
+    flavor_texts = [
+        "Gold glimmers in the light... {name} drops!",
+        "Prosperity blooms around you. {name} appears!",
+        "Riches are yours to claim! {name} materializes!"
+    ]
 
     def __init__(self, duration=3):
         self.duration = duration
@@ -183,6 +264,11 @@ class RevivalStone(Aid):
     name = "Revival Stone"
     description = "Fully restores your HP."
     price = 50
+    flavor_texts = [
+        "A legendary stone of resurrection appears!",
+        "The gods grant you a second chance. {name} materializes!",
+        "Rebirth energy flows... {name} drops!"
+    ]
 
     def use(self, user, target=None):
         healed = user.max_hp - user.hp
