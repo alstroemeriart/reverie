@@ -2,7 +2,7 @@
 Game-On Learning — Redesigned GUI
 - Left:   Character portrait + animated stat bars + hoverable attribute panel
 - Center: World log + ALL choices rendered as buttons in-panel + text input
-- Right:  Enemy panel + branching tree map
+- Right:  Enemy panel
 """
 
 from __future__ import annotations
@@ -13,9 +13,6 @@ import queue
 import os
 import math
 from typing import Any, Callable, Optional
-
-# Import animation effects
-from animation_effects import AnimationManager, FloatingText
 
 # ── Palette ──────────────────────────────────────────────────────────────────
 C = {
@@ -70,7 +67,22 @@ TOOLTIP_DEFS = {
 # ── Animated Bar Widget ───────────────────────────────────────────────────────
 
 class AnimatedBar:
-    """Canvas-based bar that smoothly interpolates to a target value."""
+    """Canvas-based horizontal bar that smoothly interpolates to target values.
+    
+    Used for HP, Focus, EXP, and Streak bars. Displays current/max values and includes
+    a subtle glossy highlight effect. Animations use 16ms step intervals for smooth motion.
+    
+    Attributes:
+        canvas (tk.Canvas): Parent canvas to draw the bar on
+        x, y, w, h (int): Position and dimensions of the bar
+        fill (str): Hex color for the fill portion
+        bg (str): Hex color for the empty/background portion
+        label (str): Optional label text
+        show_text (bool): Whether to display current/max text overlay
+        _current (float): Current fill ratio (0.0-1.0), animated
+        _target (float): Target fill ratio to animate toward
+        _animating (bool): Whether animation is in progress
+    """
 
     def __init__(self, canvas: tk.Canvas, x: int, y: int, w: int, h: int,
                  fill_color: str, bg_color: str = "#21262d", label: str = "",
@@ -91,6 +103,18 @@ class AnimatedBar:
         self._draw(0.0)
 
     def set_value(self, current: float, maximum: float):
+        """Update bar to show current/maximum values with smooth animation.
+        
+        Calculates the fill ratio and starts animation if needed. Automatically clips
+        ratio to [0.0, 1.0] range to prevent over-filling.
+        
+        Args:
+            current (float): Current value (numerator)
+            maximum (float): Maximum value (denominator). Clamped to >= 1.
+            
+        Example:
+            bar.set_value(75, 100)  # 75% full, displays "75/100"
+        """
         ratio = current / max(1, maximum)
         self._target  = max(0.0, min(1.0, ratio))
         self._val_str = f"{int(current)}/{int(maximum)}"
@@ -110,6 +134,19 @@ class AnimatedBar:
         self.canvas.after(16, self._step)
 
     def _draw(self, ratio: float):
+        """Render the bar at a specific fill ratio.
+        
+        Draws three layers (bottom to top):
+        1. Background track in bg_color with border
+        2. Fill rectangle from 0 to ratio*width
+        3. Glossy highlight stripe at top of fill
+        4. Text overlay (current/max) centered on bar
+        
+        Uses unique tag f"bar_{id(self)}" to prevent overlapping previous renders.
+        
+        Args:
+            ratio (float): Fill ratio from 0.0 (empty) to 1.0 (full)
+        """
         c = self.canvas
         x, y, w, h = self.x, self.y, self.w, self.h
 
@@ -179,7 +216,32 @@ class Tooltip:
 # ── Tree Map ──────────────────────────────────────────────────────────────────
 
 class TreeMap:
-    """Branching path map drawn on a Canvas."""
+    """Branching path map drawn on a Canvas showing run progression.
+    
+    Visualizes the player's run as a tree:
+    - Start node at top
+    - Linear chain of cleared nodes (battles, shops, etc) going down
+    - Pending branch options at bottom (colored by state: future/current)
+    - Lines connecting parent to child nodes
+    - Icons + type labels for each node
+    - Color-coded states: done (green), current (orange), future (blue)
+    
+    The map rebuilds when canvas resizes or history changes. Uses actual canvas
+    dimensions for layout, with fallbacks for rendering delays.
+    
+    Attributes:
+        canvas (tk.Canvas): Parent canvas to draw on
+        _nodes (list[dict]): All node objects with id, type, x, y, state, children
+        _current_id (int): ID of the current/last-cleared node
+        _history (list[str]): Types of cleared nodes in order
+        _pending_branches (list[dict]): Next available options (generated, not chosen yet)
+    
+    Node States:
+        'done': Cleared node (green)
+        'current': Just arrived at this node (orange)
+        'future': Available choice not yet taken (blue)
+        'start': The beginning node
+    """
 
     NODE_ICONS = {
         "battle":  ("⚔", C["text"]),
@@ -203,6 +265,7 @@ class TreeMap:
         canvas.bind("<Configure>", lambda _: self._on_canvas_resize())
 
     def reset(self):
+        """Clear all nodes and redraw empty map state."""
         self._nodes.clear()
         self._current_id = -1
         self._history.clear()
@@ -210,25 +273,60 @@ class TreeMap:
         self._redraw()
 
     def _on_canvas_resize(self):
-        """Handle canvas resize by rebuilding and redrawing."""
+        """Handle canvas resize by rebuilding and redrawing layout.
+        
+        Called via <Configure> bind when canvas window changes size. Rebuilds node
+        positions to fit new canvas dimensions, then redraws. Skips rebuild if
+        map is empty (no history/branches yet).
+        """
         if self._history or self._pending_branches:
             self._rebuild()
         self._redraw()
 
     def set_history(self, history: list[str], _current_type: str | None, branches: list[str]):
-        """Called from game thread via queue."""
+        """Update map with cleared node history and pending branch options.
+        
+        Called from game thread via queue with the run state. Rebuilds node layout
+        and redraws map to reflect new history and available options.
+        
+        Args:
+            history (list[str]): Types of nodes cleared so far, in order
+            _current_type (str | None): Current node type (unused, for signature compat)
+            branches (list[str]): Types of available next node options
+        """
         self._history = history
         self._pending_branches = [{"type": t} for t in branches]
         self._rebuild()
         self._redraw()
 
     def advance(self, chosen_type: str):
+        """Record player's node choice and update map.
+        
+        Moves the chosen branch type from pending into history, clears pending branches,
+        and redraws the map showing the new current node position.
+        
+        Args:
+            chosen_type (str): The type of node the player selected
+        """
         self._history.append(chosen_type)
         self._pending_branches = []
         self._rebuild()
         self._redraw()
 
     def _rebuild(self):
+        """Recalculate all node positions based on current canvas size.
+        
+        Layouts nodes in a branching tree:
+        1. Start node at canvas center, y=30
+        2. History chain vertically downward (each +52px)
+        3. Pending branches spread horizontally at bottom, evenly spaced
+        
+        Uses actual canvas.winfo_width/height() for layout, with fallbacks for
+        early renders when dimensions not yet available (1px = not rendered).
+        
+        Clears _nodes and rebuilds from scratch, maintaining parent-child relationships
+        via 'parent' and 'children' fields for connection drawing.
+        """
         self._nodes.clear()
         # Use actual rendered width, with fallbacks
         canvas_width = self.canvas.winfo_width()
@@ -279,6 +377,20 @@ class TreeMap:
                 node_id += 1
 
     def _redraw(self):
+        """Render all nodes and connections on the canvas.
+        
+        Draws (bottom to top):
+        1. Background grid pattern
+        2. Connection lines from parent to child nodes (state-colored)
+        3. Node circles with type icons
+        4. Node type labels below icons
+        5. "Map loads when run starts" message if no history yet
+        
+        Uses node._state to determine color:
+        - done (green), current (orange), future (blue), start (gray)
+        
+        Connection colors match the child node's state.
+        """
         c = self.canvas
         c.delete("all")
         
@@ -593,6 +705,27 @@ def _make_choice_btn(parent: tk.Widget, label: str,
 # ── Main Window ───────────────────────────────────────────────────────────────
 
 class GameGUI:
+    """Main GUI window for Game-On Learning.
+    
+    Three-panel layout:
+    - Left (210px): Character portrait, animated stat bars, attribute tooltips
+    - Center (1:weight): Narrative log, action buttons, text input
+    - Right (240px): Enemy stats panel, branching tree map
+    
+    Runs on main thread, communicates with game loop via threadsafe queue.
+    Processes events from queue with _poll() loop (60 FPS).
+    Handles keyboard shortcuts (I=inventory, ?=help, Esc=pause hint).
+    
+    Attributes:
+        root (tk.Tk): Main window
+        _q (queue.Queue): Threadsafe queue for game->GUI events
+        _player (dict): Current player stats (name, hp, gold, etc)
+        _enemy (dict): Current enemy stats
+        _choices_active (bool): Whether action buttons are clickable
+        _map_history (list[str]): Cleared node types in order
+        _map_pending (list[str]): Available next node choices
+        _animation_managers (dict): AnimationManager per GUI element
+    """
     def __init__(self, root: tk.Tk, last_run_path: str = "last_run.txt") -> None:
         self.root = root
         self.root.title("Game-On Learning")
@@ -609,9 +742,6 @@ class GameGUI:
         # Map state
         self._map_history: list[str] = []
         self._map_pending:  list[str] = []
-        
-        # Animation support
-        self._animation_managers: dict[str, AnimationManager] = {}
 
         self._build_ui()
         self._setup_keyboard_shortcuts()
@@ -623,6 +753,15 @@ class GameGUI:
     # ── Layout ───────────────────────────────────────────────────────────────
 
     def _build_ui(self) -> None:
+        """Construct the three-panel layout.
+        
+        Creates column/row grid configuration with proper weights:
+        - Column 0 (Left): Fixed 210px
+        - Column 1 (Center): Flexible (weight=1)
+        - Column 2 (Right): Fixed 240px
+        
+        Calls _build_left(), _build_center(), _build_right() to populate each panel.
+        """
         self.root.columnconfigure(0, weight=0, minsize=210)
         self.root.columnconfigure(1, weight=1)
         self.root.columnconfigure(2, weight=0, minsize=240)
@@ -633,7 +772,15 @@ class GameGUI:
         self._build_right()
 
     def _setup_keyboard_shortcuts(self) -> None:
-        """Set up global keyboard shortcuts for the game."""
+        """Set up global keyboard shortcuts for the game.
+        
+        Shortcuts:
+        - 'I': Show inventory list
+        - '?': Show help (keyboard shortcuts)
+        - 'Esc': Show pause menu hint
+        
+        Each shortcut displays output to the narrative log via ui.bus.say().
+        """
         import ui as _ui
         
         def _show_inventory(event=None):
@@ -652,7 +799,7 @@ class GameGUI:
         
         def _show_help(event=None):
             """Show keyboard shortcuts on '?' key."""
-            from polish_features import KEYBOARD_SHORTCUTS
+            from main import KEYBOARD_SHORTCUTS
             _ui.bus.say("\n" + "=" * 50)
             _ui.bus.say("      KEYBOARD SHORTCUTS")
             _ui.bus.say("=" * 50)
@@ -677,6 +824,17 @@ class GameGUI:
     # ── LEFT PANEL ───────────────────────────────────────────────────────────
 
     def _build_left(self) -> None:
+        """Construct left panel: character portrait + stat bars + attribute tooltips.
+        
+        Layout (top to bottom):
+        1. Character portrait placeholder (50x50 circle)
+        2. Character name label
+        3. Animated bars: HP, Focus, EXP
+        4. Stat grid: ATK, DEF, SPD, WIS, CRIT (with tooltips)
+        5. Streak/Gold/Level display
+        
+        All widgets populated by _update_player_stats() during gameplay.
+        """
         outer = tk.Frame(self.root, bg=C["bg"])
         outer.grid(row=0, column=0, sticky="nsew", padx=(6, 3), pady=6)
         outer.rowconfigure(0, weight=0)
@@ -948,32 +1106,47 @@ class GameGUI:
                                          justify="left")
         self.lbl_enemy_stats.pack(padx=8, anchor="w", pady=(0, 6))
 
-        # ── Map ───────────────────────────────────────────────────────────
-        map_frame = tk.Frame(outer, bg=C["panel"],
-                             highlightthickness=1,
-                             highlightbackground=C["border"])
-        map_frame.grid(row=1, column=0, sticky="nsew")
-        map_frame.rowconfigure(1, weight=1)
-        map_frame.columnconfigure(0, weight=1)
+        # ── Inventory ───────────────────────────────────────────────────
+        inventory_frame = tk.Frame(outer, bg=C["panel"],
+                                   highlightthickness=1,
+                                   highlightbackground=C["border"])
+        inventory_frame.grid(row=1, column=0, sticky="nsew")
+        inventory_frame.rowconfigure(1, weight=1)
+        inventory_frame.columnconfigure(0, weight=1)
 
-        header = tk.Frame(map_frame, bg=C["panel"])
+        header = tk.Frame(inventory_frame, bg=C["panel"])
         header.pack(fill="x")
-        tk.Label(header, text="RUN MAP", bg=C["panel"],
+        tk.Label(header, text="INVENTORY", bg=C["panel"],
                  fg=C["text_dim"], font=("Courier New", 8, "bold")).pack(
             side="left", padx=8, pady=(6, 2))
-        self.lbl_tier = tk.Label(header, text="Tier 1/3",
-                                  bg=C["panel"], fg=C["highlight"],
-                                  font=("Courier New", 8, "bold"))
-        self.lbl_tier.pack(side="right", padx=8, pady=(6, 2))
+        self.lbl_inventory_count = tk.Label(header, text="0 items",
+                                            bg=C["panel"], fg=C["highlight"],
+                                            font=("Courier New", 8, "bold"))
+        self.lbl_inventory_count.pack(side="right", padx=8, pady=(6, 2))
 
-        map_cv = tk.Canvas(map_frame,
-                           bg=C["panel2"],
-                           highlightthickness=1,
-                           highlightbackground=C["border"])
-        map_cv.pack(padx=8, pady=(2, 8), fill="both", expand=True)
-        self._tree_map = TreeMap(map_cv)
-        # Delay rendering until canvas is properly sized
-        map_cv.after(100, self._tree_map._redraw)
+        # Inventory listbox with scrollbar
+        inventory_container = tk.Frame(inventory_frame, bg=C["panel"])
+        inventory_container.pack(fill="both", expand=True, padx=8, pady=(2, 8))
+
+        scrollbar = tk.Scrollbar(inventory_container, bg=C["panel2"])
+        scrollbar.pack(side="right", fill="y")
+
+        self.inventory_listbox = tk.Listbox(
+            inventory_container,
+            bg=C["panel2"],
+            fg=C["text"],
+            selectbackground=C["highlight"],
+            selectforeground="#000000",
+            font=("Courier New", 8),
+            highlightthickness=1,
+            highlightbackground=C["border"],
+            yscrollcommand=scrollbar.set
+        )
+        self.inventory_listbox.pack(fill="both", expand=True)
+        scrollbar.config(command=self.inventory_listbox.yview)
+
+        # Bind double-click to use item
+        self.inventory_listbox.bind('<Double-Button-1>', self._use_inventory_item)
 
     def _init_enemy_bars(self, _event=None):
         cv  = self._enemy_bars_cv
@@ -1126,6 +1299,9 @@ class GameGUI:
                     col = C["accent"]
                 self._attr_labels[key].config(text=val, fg=col)
 
+        # Update inventory display
+        self._update_inventory_display()
+
     # ── Enemy update ──────────────────────────────────────────────────────────
 
     def _do_update_enemy(self, data: dict[str, Any]) -> None:
@@ -1271,19 +1447,63 @@ class GameGUI:
     # ── Map update ────────────────────────────────────────────────────────────
 
     def _do_map_update(self, text: str, history: list[str] | None = None, pending: list[str] | None = None) -> None:
-        # Parse tier from map update text
+        # Parse tier from map update text (keeping for compatibility)
         tier_str = "1"
         if "Tier" in text:
             try:
                 tier_str = text.split("Tier")[1].split("/")[0].strip()
             except Exception:
                 pass
-        self.lbl_tier.config(text=f"Tier {tier_str}/3")
+        # Tier label removed with TreeMap, but keeping parsing for compatibility
+
+    # ── Inventory management ─────────────────────────────────────────────────
+
+    def _update_inventory_display(self) -> None:
+        """Update the inventory listbox with current player inventory."""
+        self.inventory_listbox.delete(0, tk.END)
         
-        # Update the tree map visualization
-        if history is not None and pending is not None:
-            current = history[-1] if history else None
-            self._tree_map.set_history(history, current, pending)
+        if not hasattr(self, '_player') or not self._player:
+            self.lbl_inventory_count.config(text="0 items")
+            return
+            
+        inventory = self._player.get("inventory", [])
+        self.lbl_inventory_count.config(text=f"{len(inventory)} items")
+        
+        for i, item in enumerate(inventory, 1):
+            # Handle both dict and object formats
+            if isinstance(item, dict):
+                item_name = item.get('name', 'Unknown')
+                item_desc = item.get('description', 'No description')
+            else:
+                item_name = getattr(item, 'name', 'Unknown')
+                item_desc = getattr(item, 'description', 'No description')
+            
+            display_text = f"{i}. {item_name} - {item_desc}"
+            self.inventory_listbox.insert(tk.END, display_text)
+
+    def _use_inventory_item(self, event=None) -> None:
+        """Handle double-click on inventory item to use it."""
+        selection = self.inventory_listbox.curselection()
+        if not selection:
+            return
+            
+        index = selection[0]
+        if not hasattr(self, '_player') or not self._player:
+            return
+            
+        inventory = self._player.get("inventory", [])
+        if 0 <= index < len(inventory):
+            item = inventory[index]
+            # Handle both dict and object formats
+            if isinstance(item, dict):
+                item_name = item.get('name', 'Unknown')
+                item_desc = item.get('description', 'No description')
+            else:
+                item_name = getattr(item, 'name', 'Unknown')
+                item_desc = getattr(item, 'description', 'No description')
+            
+            # For now, just show item info. Full usage would need integration with combat system
+            self._q.put(("log", f"Selected: {item_name} - {item_desc}", None))
 
     # ── Title screen overlay ─────────────────────────────────────────────────
 
@@ -1447,392 +1667,6 @@ class GameGUI:
             # Legacy: action_buttons and boss_actions are now ignored
             # (all choices go through the center choice panel)
 
-    def _do_combat_animation(self, combat_type: str, data: dict[str, Any]) -> None:
-        """Trigger animations for all combat and game events."""
-        # Initialize animation manager for enemy canvas if needed
-        if "enemy" not in self._animation_managers:
-            try:
-                enemy_canvas = self._enemy_canvas_obj.canvas
-                self._animation_managers["enemy"] = AnimationManager(enemy_canvas)
-                self._animation_managers["enemy"].start()
-            except (AttributeError, NameError):
-                return
-
-        if "log" not in self._animation_managers:
-            # Skip log canvas animations since log is a Text widget, not a Canvas
-            pass
-
-        mgr = self._animation_managers.get("enemy")
-        msg = data.get("message", "").lower()
-
-        # ─── DAMAGE ANIMATIONS ───────────────────────────────────────────────
-        if combat_type == "damage":
-            try:
-                self._enemy_canvas_obj.trigger_hit()
-            except (AttributeError, TypeError):
-                pass
-
-            amount = int(data.get("amount", 0))
-            severity = data.get("severity", "normal")
-
-            if mgr:
-                if severity == "heavy":
-                    mgr.add_screen_shake(intensity=8, duration=0.3)
-                    mgr.add_color_flash(C["hp_low"], duration=0.25)
-                    mgr.add_particles(
-                        self._enemy_canvas_obj.canvas.winfo_width() // 2,
-                        self._enemy_canvas_obj.canvas.winfo_height() // 2,
-                        count=16, color=C["wrong"], speed=80
-                    )
-                else:
-                    mgr.add_screen_shake(intensity=3, duration=0.15)
-                    mgr.add_color_flash(C["accent"], duration=0.15)
-
-                try:
-                    x = self._enemy_canvas_obj.canvas.winfo_width() // 2
-                    y = self._enemy_canvas_obj.canvas.winfo_height() // 2
-                    mgr.add_floating_text(
-                        x, y - 30,
-                        f"-{amount}",
-                        C["hp_low"],
-                        font_size=20,
-                        duration=1.2
-                    )
-                except:
-                    pass
-
-        # ─── CORRECT ANSWER ANIMATIONS ────────────────────────────────────
-        elif combat_type == "correct":
-            if mgr:
-                mgr.add_color_flash(C["correct"], duration=0.3)
-                mgr.add_particles(
-                    self._enemy_canvas_obj.canvas.winfo_width() // 2,
-                    self._enemy_canvas_obj.canvas.winfo_height() // 4,
-                    count=10, color=C["correct"], speed=50
-                )
-                try:
-                    x = self._enemy_canvas_obj.canvas.winfo_width() // 2
-                    y = 120
-                    mgr.add_floating_text(
-                        x, y,
-                        "✓ CORRECT",
-                        C["correct"],
-                        font_size=16,
-                        duration=1.0
-                    )
-                except:
-                    pass
-
-        # ─── INCORRECT ANSWER ANIMATIONS ──────────────────────────────────
-        elif combat_type == "incorrect":
-            if mgr:
-                mgr.add_color_flash(C["wrong"], duration=0.4)
-                mgr.add_screen_shake(intensity=4, duration=0.2)
-                mgr.add_particles(
-                    self._enemy_canvas_obj.canvas.winfo_width() // 2,
-                    self._enemy_canvas_obj.canvas.winfo_height() * 3 // 4,
-                    count=12, color=C["wrong"], speed=60
-                )
-                try:
-                    x = self._enemy_canvas_obj.canvas.winfo_width() // 2
-                    y = 280
-                    mgr.add_floating_text(
-                        x, y,
-                        "✗ WRONG",
-                        C["wrong"],
-                        font_size=16,
-                        duration=1.0
-                    )
-                except:
-                    pass
-
-        # ─── CRITICAL HIT ANIMATIONS ──────────────────────────────────────
-        elif combat_type == "critical":
-            try:
-                self._enemy_canvas_obj.trigger_hit()
-            except (AttributeError, TypeError):
-                pass
-            if mgr:
-                mgr.add_screen_shake(intensity=10, duration=0.4)
-                mgr.add_color_flash(C["streak_fill"], duration=0.3)
-                mgr.add_particles(
-                    self._enemy_canvas_obj.canvas.winfo_width() // 2,
-                    self._enemy_canvas_obj.canvas.winfo_height() // 2,
-                    count=20, color=C["streak_fill"], speed=100
-                )
-                try:
-                    x = self._enemy_canvas_obj.canvas.winfo_width() // 2
-                    y = 140
-                    mgr.add_floating_text(
-                        x, y,
-                        "⚡ CRITICAL!",
-                        C["streak_fill"],
-                        font_size=18,
-                        duration=1.2
-                    )
-                except:
-                    pass
-
-        # ─── FOCUS GAIN ANIMATIONS ────────────────────────────────────────
-        elif combat_type == "focus_gain":
-            if mgr:
-                amount = int(data.get("amount", 10))
-                mgr.add_color_flash(C["focus_fill"], duration=0.25)
-                mgr.add_particles(
-                    self._enemy_canvas_obj.canvas.winfo_width(),
-                    self._enemy_canvas_obj.canvas.winfo_height() // 2,
-                    count=8, color=C["focus_fill"], speed=40
-                )
-                try:
-                    x = self._enemy_canvas_obj.canvas.winfo_width() // 2
-                    y = 100
-                    mgr.add_floating_text(
-                        x, y,
-                        f"+{amount} Focus",
-                        C["focus_fill"],
-                        font_size=14,
-                        duration=1.0
-                    )
-                except:
-                    pass
-
-        # ─── STREAK ANIMATIONS ────────────────────────────────────────────
-        elif combat_type == "streak_gain":
-            if mgr:
-                streak_val = data.get("streak", 1)
-                mgr.add_color_flash(C["streak_fill"], duration=0.25)
-                mgr.add_particles(
-                    self._enemy_canvas_obj.canvas.winfo_width() * 3 // 4,
-                    self._enemy_canvas_obj.canvas.winfo_height() // 3,
-                    count=12, color=C["streak_fill"], speed=60
-                )
-                try:
-                    x = self._enemy_canvas_obj.canvas.winfo_width() * 2 // 3
-                    y = 60
-                    mgr.add_floating_text(
-                        x, y,
-                        f"STREAK ✦ {streak_val}",
-                        C["streak_fill"],
-                        font_size=16,
-                        duration=1.5
-                    )
-                except:
-                    pass
-
-        # ─── GOLD/MONEY ANIMATIONS ────────────────────────────────────────
-        elif combat_type == "gold_gained":
-            if mgr:
-                gold_amount = int(data.get("amount", 0))
-                mgr.add_color_flash(C["gold"], duration=0.3)
-                mgr.add_particles(
-                    self._enemy_canvas_obj.canvas.winfo_width() * 3 // 4,
-                    self._enemy_canvas_obj.canvas.winfo_height() * 3 // 4,
-                    count=14, color=C["gold"], speed=70
-                )
-                try:
-                    x = self._enemy_canvas_obj.canvas.winfo_width() * 3 // 4
-                    y = 200
-                    if gold_amount > 0:
-                        mgr.add_floating_text(
-                            x, y,
-                            f"+{gold_amount} Gold",
-                            C["gold"],
-                            font_size=15,
-                            duration=1.3
-                        )
-                except:
-                    pass
-
-        # ─── LEVEL UP ANIMATIONS ──────────────────────────────────────────
-        elif combat_type == "level_up":
-            if mgr:
-                mgr.add_screen_shake(intensity=6, duration=0.4)
-                mgr.add_color_flash(C["exp_fill"], duration=0.4)
-                mgr.add_particles(
-                    self._enemy_canvas_obj.canvas.winfo_width() // 2,
-                    150,
-                    count=18, color=C["exp_fill"], speed=80
-                )
-                try:
-                    x = self._enemy_canvas_obj.canvas.winfo_width() // 2
-                    y = 80
-                    level = data.get("level", "")
-                    mgr.add_floating_text(
-                        x, y,
-                        f"⬆ LVL {level}!",
-                        C["exp_fill"],
-                        font_size=18,
-                        duration=1.5
-                    )
-                except:
-                    pass
-
-        # ─── STATUS EFFECT ANIMATIONS ─────────────────────────────────────
-        elif combat_type == "status_applied":
-            if mgr:
-                effect_color = C["accent2"]  # Default green
-                if "burn" in msg:
-                    effect_color = C["accent"]  # Orange
-                elif "freeze" in msg:
-                    effect_color = C["focus_fill"]  # Blue
-                elif "stun" in msg:
-                    effect_color = C["gold"]  # Yellow
-                
-                mgr.add_color_flash(effect_color, duration=0.35)
-                mgr.add_particles(
-                    self._enemy_canvas_obj.canvas.winfo_width() // 2,
-                    self._enemy_canvas_obj.canvas.winfo_height() // 2,
-                    count=12, color=effect_color, speed=50
-                )
-
-        # ─── HEALING ANIMATIONS ───────────────────────────────────────────
-        elif combat_type == "heal":
-            if mgr:
-                amount = data.get("amount", 10)
-                mgr.add_color_flash(C["hp_high"], duration=0.3)
-                mgr.add_particles(
-                    self._enemy_canvas_obj.canvas.winfo_width() // 2,
-                    self._enemy_canvas_obj.canvas.winfo_height() * 3 // 4,
-                    count=14, color=C["hp_high"], speed=60
-                )
-                try:
-                    x = self._enemy_canvas_obj.canvas.winfo_width() // 2
-                    y = 280
-                    mgr.add_floating_text(
-                        x, y,
-                        f"+{amount} HP",
-                        C["hp_high"],
-                        font_size=16,
-                        duration=1.2
-                    )
-                except:
-                    pass
-
-        # ─── SHIELD ANIMATIONS ────────────────────────────────────────────
-        elif combat_type == "shield_gained":
-            if mgr:
-                amount = data.get("amount", 0)
-                mgr.add_color_flash(C["highlight"], duration=0.25)
-                mgr.add_particles(
-                    self._enemy_canvas_obj.canvas.winfo_width() // 4,
-                    self._enemy_canvas_obj.canvas.winfo_height() // 2,
-                    count=10, color=C["highlight"], speed=45
-                )
-                try:
-                    x = self._enemy_canvas_obj.canvas.winfo_width() // 3
-                    y = 150
-                    if amount > 0:
-                        mgr.add_floating_text(
-                            x, y,
-                            f"◆ +{amount}",
-                            C["highlight"],
-                            font_size=13,
-                            duration=1.1
-                        )
-                except:
-                    pass
-
-        # ─── DODGE ANIMATIONS ─────────────────────────────────────────────
-        elif combat_type == "dodge":
-            if mgr:
-                mgr.add_color_flash(C["accent2"], duration=0.2)
-                mgr.add_particles(
-                    self._enemy_canvas_obj.canvas.winfo_width() * 3 // 4,
-                    self._enemy_canvas_obj.canvas.winfo_height() // 2,
-                    count=8, color=C["accent2"], speed=70
-                )
-                try:
-                    x = self._enemy_canvas_obj.canvas.winfo_width() * 3 // 4
-                    y = 130
-                    mgr.add_floating_text(
-                        x, y,
-                        "DODGE!",
-                        C["accent2"],
-                        font_size=14,
-                        duration=0.8
-                    )
-                except:
-                    pass
-
-        # ─── ENEMY DEFEAT ANIMATIONS ──────────────────────────────────────
-        elif combat_type == "enemy_defeated":
-            if mgr:
-                mgr.add_screen_shake(intensity=12, duration=0.5)
-                mgr.add_color_flash(C["correct"], duration=0.5)
-                mgr.add_particles(
-                    self._enemy_canvas_obj.canvas.winfo_width() // 2,
-                    self._enemy_canvas_obj.canvas.winfo_height() // 2,
-                    count=24, color=C["correct"], speed=90
-                )
-                try:
-                    x = self._enemy_canvas_obj.canvas.winfo_width() // 2
-                    y = 100
-                    mgr.add_floating_text(
-                        x, y,
-                        "VICTORY!",
-                        C["correct"],
-                        font_size=20,
-                        duration=1.5
-                    )
-                except:
-                    pass
-
-        # ─── PLAYER DEFEAT ANIMATIONS ─────────────────────────────────────
-        elif combat_type == "player_defeated":
-            if mgr:
-                mgr.add_screen_shake(intensity=15, duration=0.6)
-                mgr.add_color_flash(C["hp_low"], duration=0.6)
-                mgr.add_particles(
-                    self._enemy_canvas_obj.canvas.winfo_width() // 2,
-                    self._enemy_canvas_obj.canvas.winfo_height() // 2,
-                    count=20, color=C["hp_low"], speed=100
-                )
-
-        # ─── BOSS ANIMATIONS ──────────────────────────────────────────────
-        elif combat_type == "boss_event":
-            if mgr:
-                mgr.add_screen_shake(intensity=12, duration=0.5)
-                mgr.add_color_flash(C["boss_color"], duration=0.45)
-                mgr.add_particles(
-                    self._enemy_canvas_obj.canvas.winfo_width() // 2,
-                    self._enemy_canvas_obj.canvas.winfo_height() // 2,
-                    count=22, color=C["boss_color"], speed=95
-                )
-
-        # ─── MASTERY MILESTONE ANIMATIONS ─────────────────────────────────
-        elif combat_type == "mastery_milestone":
-            if mgr:
-                mgr.add_color_flash(C["exp_fill"], duration=0.35)
-                mgr.add_particles(
-                    self._enemy_canvas_obj.canvas.winfo_width() // 2,
-                    self._enemy_canvas_obj.canvas.winfo_height() // 2,
-                    count=16, color=C["exp_fill"], speed=75
-                )
-
-        # ─── SKILL UNLOCK ANIMATIONS ──────────────────────────────────────
-        elif combat_type == "skill_unlocked":
-            if mgr:
-                mgr.add_screen_shake(intensity=5, duration=0.3)
-                mgr.add_color_flash(C["accent3"], duration=0.4)
-                mgr.add_particles(
-                    self._enemy_canvas_obj.canvas.winfo_width() // 2,
-                    150,
-                    count=14, color=C["accent3"], speed=65
-                )
-                try:
-                    x = self._enemy_canvas_obj.canvas.winfo_width() // 2
-                    y = 80
-                    mgr.add_floating_text(
-                        x, y,
-                        "NEW SKILL!",
-                        C["accent3"],
-                        font_size=16,
-                        duration=1.4
-                    )
-                except:
-                    pass
-
-
     # ── Poll queue ────────────────────────────────────────────────────────────
 
     def _poll(self) -> None:
@@ -1846,8 +1680,6 @@ class GameGUI:
                     self._do_clear()
                 elif cmd == "player":
                     self._do_update_player(msg[1])
-                elif cmd == "combat_anim":
-                    self._do_combat_animation(msg[1], msg[2])
                 elif cmd == "map":
                     self._do_map_update(msg[1], 
                                        msg[2] if len(msg) > 2 else [],

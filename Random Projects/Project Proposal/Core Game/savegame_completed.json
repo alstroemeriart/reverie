@@ -1,12 +1,12 @@
 {
   "player": {
-    "name": "igykhb",
-    "max_hp": 1019,
-    "hp": 1019,
+    "name": "Artsy",
+    "max_hp": 1029,
+    "hp": 1029,
     "atk": 1002,
-    "defense": 1002,
+    "defense": 999,
     "spd": 1001,
-    "wisdom": 999,
+    "wisdom": 1004,
     "crit_chance": 1,
     "crit_multiplier": 10,
     "class_name": "God Mode",
@@ -14,19 +14,19 @@
     "run_modifier": "scholar",
     "debug_mode": true,
     "lvl": 4,
-    "exp": 181,
+    "exp": 201,
     "xp_to_next": 219,
-    "gold": 360,
-    "streak": 7,
-    "longest_streak": 9,
+    "gold": 439,
+    "streak": 11,
+    "longest_streak": 11,
     "focus": 0,
     "max_focus": 100,
     "mastery": {
       "TF": 3,
-      "MC": 1,
-      "AR": 4,
-      "ID": 2,
-      "FB": 1,
+      "MC": 0,
+      "AR": 3,
+      "ID": 5,
+      "FB": 0,
       "OD": 0
     },
     "action_points": 2,
@@ -44,18 +44,38 @@
         "price": 20
       },
       {
+        "name": "Defense Boost",
+        "price": 25
+      },
+      {
+        "name": "Healing Potion",
+        "price": 15
+      },
+      {
+        "name": "Freeze Scroll",
+        "price": 35
+      },
+      {
+        "name": "Attack Boost",
+        "price": 25
+      },
+      {
         "name": "Weakness Curse",
         "price": 30
       },
       {
-        "name": "Defense Boost",
-        "price": 25
+        "name": "Poison Bomb",
+        "price": 30
+      },
+      {
+        "name": "Freeze Scroll",
+        "price": 35
       }
     ]
   },
   "run": {
     "tier": 3,
-    "battles_won": 14,
+    "battles_won": 13,
     "nodes_cleared": 14
   }
 }

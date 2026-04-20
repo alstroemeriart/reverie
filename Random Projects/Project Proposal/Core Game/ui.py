@@ -5,7 +5,11 @@ import random
 
 
 def clear_screen():
-    """Clear the screen. In GUI mode this fires a bus event instead."""
+    """Clear the screen or narrative log.
+    
+    In GUI mode: emits 'clear_log' event to GUI to clear narrative text area.
+    In terminal mode: executes 'cls' (Windows) or 'clear' (Unix/Linux).
+    """
     if _gui_active():
         bus.game_event("clear_log")
     else:
@@ -13,10 +17,23 @@ def clear_screen():
 
 
 def typewriter(text, delay=0.005):
-    """
-    Print text character-by-character in terminal mode,
-    or emit it through the event bus in GUI mode.
-    All game modules call this function directly — no patching needed.
+    """Display text character-by-character for dramatic effect.
+    
+    In GUI mode: emits text through event bus (no character delay).
+    In terminal mode: prints each character with delay (default 5ms) for typewriter effect.
+    Includes Unicode fallback for systems that don't support console Unicode.
+    
+    All game modules call this directly. No patching needed for GUI/terminal switching.
+    
+    Args:
+        text: String or object to display (converted to str)
+        delay (float): Milliseconds between characters (terminal only). Defaults to 0.005.
+    
+    Unicode Fallbacks (terminal mode):
+        '→' -> '->'
+        '★' -> '*'
+        '█' -> '#'
+        etc. (see replacements dict)
     """
     if _gui_active():
         bus.say(str(text))
@@ -40,6 +57,24 @@ def typewriter(text, delay=0.005):
 
 
 def hp_bar(current, maximum, length=20):
+    """Create an ASCII HP bar visualization.
+    
+    Displays a horizontal bar filled with '#' for health and '-' for damage.
+    Also shows current/max HP and health status (healthy/wounded/critical).
+    
+    Args:
+        current (float): Current HP value
+        maximum (float): Maximum HP value
+        length (int): Width of the bar in characters. Defaults to 20.
+        
+    Returns:
+        str: Formatted bar like "[#####-----------] 25/40 (wounded)"
+        
+    Status Colors (terminal only):
+        > 50%: "healthy" (green in GUI)
+        25-50%: "wounded" (orange in GUI)
+        < 25%: "critical" (red in GUI)
+    """
     if maximum <= 0:
         return "[--------------------] 0/0"
     filled = max(0, min(length, int((current / maximum) * length)))
@@ -52,17 +87,62 @@ def hp_bar(current, maximum, length=20):
 # ── Event bus ────────────────────────────────────────────────────────────────
 
 class EventBus:
+    """Publish-subscribe event system for game -> GUI communication.
+    
+    Single EventBus instance (module-level 'bus') is shared across all modules.
+    Game code emits events, GUI subscribes to listen. Threadsafe via thread-local
+    event queues (not used directly here, but wrapped at GUI level).
+    
+    Event Types:
+        - 'text': Narrative text to display
+        - 'stat_update': Player/enemy stat changes
+        - 'combat': Combat-specific events (damage, heal, miss, etc)
+        - 'game': General game events (clear_log, map_update, title_screen, etc)
+    
+    Attributes:
+        _listeners (list[callable]): Callbacks subscribed to all events
+    """
     def __init__(self):
         self._listeners = []
 
     def subscribe(self, fn):
+        """Register a callback to receive all events.
+        
+        Args:
+            fn: Callable that accepts (event: dict) where event has keys:
+                - 'type': Event type string
+                - Additional keys depend on event type
+                
+        Example:
+            def my_listener(event):
+                if event['type'] == 'text':
+                    print(event['content'])
+            bus.subscribe(my_listener)
+        """
         if fn not in self._listeners:
             self._listeners.append(fn)
 
     def unsubscribe(self, fn):
+        """Remove a listener callback.
+        
+        Args:
+            fn: The callback to stop listening
+        """
         self._listeners = [l for l in self._listeners if l is not fn]
 
     def emit(self, event_type, **data):
+        """Emit an event to all subscribed listeners.
+        
+        Catches and ignores exceptions in individual listener callbacks to prevent
+        one broken listener from crashing the event system.
+        
+        Args:
+            event_type (str): Type identifier for this event
+            **data: Additional key-value pairs attached to the event
+            
+        Example:
+            bus.emit('combat', action='hit', damage=25, attacker='player')
+        """
         event = {"type": event_type, **data}
         for fn in list(self._listeners):
             try:
@@ -71,20 +151,72 @@ class EventBus:
                 pass
 
     def say(self, text):
+        """Emit a text display event.
+        
+        Shorthand for emit('text', content=str(text)). Used to display narrative
+        messages, combat logs, menu text, etc.
+        
+        Args:
+            text: Text to display (converted to string)
+        """
         self.emit("text", content=str(text))
 
     def stat_update(self, **data):
+        """Emit a player/enemy stat change event.
+        
+        Used to update GUI stat displays (HP bar, gold, streak, etc) in real-time.
+        GUI listens to these and updates animated bars/labels accordingly.
+        
+        Args:
+            **data: Player or enemy stat keys and values
+            
+        Example:
+            bus.stat_update(player_hp=50, player_max_hp=100, gold=250)
+        """
         self.emit("stat_update", **data)
 
     def combat_event(self, name, **data):
+        """Emit a combat-specific event (damage, heal, miss, dodge, etc).
+        
+        Used to display combat feedback and play animations. GUI listens for these
+        to show floating text (damage numbers), color flashes, etc.
+        
+        Args:
+            name (str): Combat action type ('damage', 'heal', 'miss', 'dodge', 'crit')
+            **data: Additional context (damage amount, who attacked, etc)
+            
+        Example:
+            bus.combat_event('damage', attacker='enemy', defender='player', amount=15, crit=False)
+        """
         self.emit("combat", name=name, **data)
 
     def game_event(self, name, **data):
+        """Emit a high-level game event (run state changes, screen transitions, etc).
+        
+        Used to show title screens, game-over screens, update maps, clear logs, etc.
+        
+        Args:
+            name (str): Game event type ('title_screen', 'game_over', 'map_update', etc)
+            **data: Event-specific parameters
+            
+        Example:
+            bus.game_event('title_screen')  # Show title screen overlay
+            bus.game_event('map_update', text="Tier 2/3 | Node 5...", history=[...])
+        """
         self.emit("game", name=name, **data)
 
 
 def _terminal_listener(event):
-    """Default listener — prints text events to the terminal."""
+    """Default listener — prints text events to the terminal.
+    
+    Displays incoming text events character-by-character (0.5ms per char) when
+    game is running in terminal mode. This is the fallback when no GUI is active.
+    
+    Ignored in GUI mode (GUI has its own listeners registered).
+    
+    Args:
+        event (dict): Event dict with keys like 'type', 'content'
+    """
     if event["type"] == "text":
         content = event.get("content", "")
         for char in str(content):
@@ -100,17 +232,33 @@ bus.subscribe(_terminal_listener)
 # ── GUI mode flag ─────────────────────────────────────────────────────────────
 
 def _gui_active():
-    """Returns True once the GUI has been initialised."""
+    """Returns True once the GUI has been initialised.
+    
+    Checks input_handler.gui_mode flag, which is set by the GUI thread when
+    the GameGUI window is fully constructed.
+    
+    Returns:
+        bool: True if GUI is active, False if in terminal mode
+    """
     return input_handler.gui_mode
 
 
 # ── Input handler ─────────────────────────────────────────────────────────────
 
 class InputHandler:
-    """
-    Single point for ALL player input in the game.
-    Terminal mode : calls input() directly.
-    GUI mode      : blocks until push_answer() is called from the GUI thread.
+    """Single point for ALL player input (both terminal and GUI modes).
+    
+    Terminal mode: Calls input() directly from the game thread.
+    GUI mode: Blocks game thread and waits for GUI thread to call push_answer().
+    
+    Handles both free-form text input (ask) and multiple-choice selections (ask_choice).
+    Auto-play mode can skip player input entirely for testing/demo purposes.
+    
+    Attributes:
+        _pending: Current user response, set by push_answer()
+        gui_mode (bool): True if GUI is active and running
+        auto_play_mode (bool): True to auto-answer questions (for testing)
+        in_combat_question (bool): True if currently answering a combat question
     """
 
     def __init__(self):
@@ -127,6 +275,20 @@ class InputHandler:
         return result
 
     def ask(self, prompt=""):
+        """Request free-form text input from the player.
+        
+        Terminal mode: Displays prompt and returns input().
+        GUI mode: Hides choice buttons, displays prompt in GUI, blocks until push_answer() called.
+        
+        Args:
+            prompt (str): Optional prompt text to display
+            
+        Returns:
+            str: The user's input, stripped of leading/trailing whitespace
+            
+        Example:
+            name = input_handler.ask("Enter your name: ")
+        """
         if not self.gui_mode:
             return input(prompt).strip()
         bus.game_event("hide_choices")
@@ -135,6 +297,29 @@ class InputHandler:
         return self._wait_for_pending()
 
     def ask_choice(self, choices, prompt=""):
+        """Request a multiple-choice selection from the player.
+        
+        Terminal mode: Displays prompt, returns user's input.
+        GUI mode: Displays choices as buttons, blocks until user clicks one.
+        
+        Normalizes choice input formats:
+        - dict: {"label": "...", "value": "...", "log": "..."}
+        - tuple/list: (label, value, log)
+        - string: Used as both label and value
+        
+        Args:
+            choices (list): List of choices in any supported format
+            prompt (str): Optional prompt before choices
+            
+        Returns:
+            str: The 'value' of the selected choice
+            
+        Example:
+            choice = input_handler.ask_choice([
+                {"label": "Attack", "value": "attack"},
+                {"label": "Defend", "value": "defend"},
+            ], "Choose action: ")
+        """
         if not self.gui_mode:
             return input(prompt).strip()
 

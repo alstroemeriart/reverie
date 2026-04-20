@@ -45,7 +45,12 @@ class Aid:
 # =========================
 
 class HealingPotion(Aid):
-    """Consumable item that restores 20 HP."""
+    """Consumable item that restores 20 HP.
+    
+    Standard healing potion. Entry-level aid item for early runs.
+    Attributes:
+        heal_amount (int): HP to restore. Defaults to 20.
+    """
     name = "Healing Potion"
     description = "Restores 20 HP."
     price = 15
@@ -64,7 +69,14 @@ class HealingPotion(Aid):
         return f"{user.name} heals {self.heal_amount} HP!"
 
 class MegaHealingPotion(Aid):
-    """Consumable item that restores 50 HP (stronger healing)."""
+    """Consumable item that restores 50 HP (stronger healing).
+    
+    Rare higher-tier healing potion for mid/late game runs.
+    Restores 2.5x HP of standard HealingPotion.
+    
+    Attributes:
+        heal_amount (int): HP to restore. Defaults to 50.
+    """
     name = "Mega Healing Potion"
     description = "Restores 50 HP."
     price = 35
@@ -87,7 +99,15 @@ class MegaHealingPotion(Aid):
 # =========================
 
 class AttackBoost(Aid):
-    """Consumable item that grants temporary ATK +5 buff for 3 turns."""
+    """Consumable item that grants temporary ATK +5 buff for 3 turns.
+    
+    Applies a temporary stat buff via status effect system. Useful for
+    burst damage on difficult enemies. Stacks with skill bonuses.
+    
+    Attributes:
+        boost_amount (int): ATK increase. Defaults to 5.
+        duration (int): Turns the buff lasts. Defaults to 3.
+    """
     name = "Attack Boost"
     description = "ATK +5 for 3 turns."
     price = 25
@@ -102,6 +122,15 @@ class AttackBoost(Aid):
         self.duration = duration
 
     def use(self, user, target=None):
+        """Apply a temporary attack buff via status effect.
+        
+        Args:
+            user: The character using the item (receives buff)
+            target: Unused (kept for interface compatibility)
+            
+        Returns:
+            str: Message describing the buff application
+        """
         from statusEffects import AttackBuff
         buff = AttackBuff(self.boost_amount, self.duration)
         user.status_effects.append(buff)
@@ -109,6 +138,15 @@ class AttackBoost(Aid):
         return f"ATK +{self.boost_amount} for {self.duration} turns!"
 
 class DefenseBoost(Aid):
+    """Consumable item that grants temporary DEF +5 buff for 3 turns.
+    
+    Applies a temporary defense buff via status effect system. Useful for
+    surviving heavy enemy attacks. Reduces damage taken by damage reduction %.
+    
+    Attributes:
+        boost_amount (int): DEF increase. Defaults to 5.
+        duration (int): Turns the buff lasts. Defaults to 3.
+    """
     name = "Defense Boost"
     description = "DEF +5 for 3 turns."
     price = 25
@@ -123,6 +161,15 @@ class DefenseBoost(Aid):
         self.duration = duration
 
     def use(self, user, target=None):
+        """Apply a temporary defense buff via status effect.
+        
+        Args:
+            user: The character using the item (receives buff)
+            target: Unused (kept for interface compatibility)
+            
+        Returns:
+            str: Message describing the buff application
+        """
         from statusEffects import DefenseBuff
         buff = DefenseBuff(self.boost_amount, self.duration)
         user.status_effects.append(buff)
@@ -130,6 +177,15 @@ class DefenseBoost(Aid):
         return f"DEF +{self.boost_amount} for {self.duration} turns!"
 
 class SpeedBoost(Aid):
+    """Consumable item that grants temporary SPD +3 buff for 3 turns.
+    
+    Applies a temporary speed buff via status effect system. Improves dodge
+    chance and turn order priority. Useful for kiting difficult enemies.
+    
+    Attributes:
+        boost_amount (int): SPD increase. Defaults to 3.
+        duration (int): Turns the buff lasts. Defaults to 3.
+    """
     name = "Speed Boost"
     description = "SPD +3 for 3 turns. Improves dodge."
     price = 30
@@ -144,6 +200,15 @@ class SpeedBoost(Aid):
         self.duration = duration
 
     def use(self, user, target=None):
+        """Apply a temporary speed buff via status effect.
+        
+        Args:
+            user: The character using the item (receives buff)
+            target: Unused (kept for interface compatibility)
+            
+        Returns:
+            str: Message describing the buff application
+        """
         from statusEffects import SpeedBuff
         buff = SpeedBuff(self.boost_amount, self.duration)
         user.status_effects.append(buff)

@@ -37,20 +37,35 @@ CATEGORY_NAMES = {
 def _set_action_ui(action=False, boss=False):
     """Enable or disable action buttons in the GUI.
     
+    Controls visibility/clickability of:
+    - Standard action buttons (Attack, Defend, Item, Escape)
+    - Boss-specific action buttons (if applicable)
+    
     Args:
-        action: Whether to enable standard action buttons.
-        boss: Whether to enable boss-specific action buttons.
+        action (bool): Whether to enable standard action buttons. Defaults to False.
+        boss (bool): Whether to enable boss-specific buttons. Defaults to False.
+    
+    Side effects:
+        - Emits 'action_buttons' and 'boss_actions' game events to GUI
     """
     bus.game_event("action_buttons", enabled=action)
     bus.game_event("boss_actions", enabled=boss)
 
 
 def _emit_enemy_panel(entity, role="enemy"):
-    """Send enemy stats to GUI for display in enemy panel.
+    """Send enemy stats to GUI for display in right panel.
+    
+    Updates the enemy info panel showing:
+    - Name, HP bar, ATK/DEF/SPD stats
+    - Shield, crit chance, behavior type
+    - Active status effects with durations
     
     Args:
-        entity: The entity (enemy or boss) to display.
-        role: Entity type label ('enemy', 'boss', 'elite', etc).
+        entity: The creature (enemy, boss, elite, etc) to display
+        role (str): Entity type label ('enemy', 'boss', 'elite'). Used for theming.
+    
+    Side effects:
+        - Emits 'enemy_update' game event to GUI with all stats
     """
     bus.game_event(
         "enemy_update",
@@ -69,7 +84,11 @@ def _emit_enemy_panel(entity, role="enemy"):
 
 
 def _clear_enemy_panel():
-    """Clear the enemy panel display on the GUI."""
+    """Clear the enemy panel display on the GUI.
+    
+    Called when combat ends to hide enemy stats panel.
+    Emits 'enemy_clear' game event.
+    """
     bus.game_event("enemy_clear")
 
 
@@ -78,12 +97,25 @@ def _clear_enemy_panel():
 # ─────────────────────────────────────────────
 
 def damage_line(attacker_name, target, dmg):
-    """Display damage result and classify severity.
+    """Display and classify a damage action.
+    
+    Determines damage severity:
+    - >= 25% max HP: "HEAVY HIT!"
+    - >= 10% max HP: Normal hit
+    - < 10% max HP: Glancing blow/graze
+    
+    Displays text and emits both narrative (via typewriter) and GUI event
+    (via bus.combat_event). Updates enemy panel if target is an enemy.
     
     Args:
-        attacker_name: Name of the attacker.
-        target: Target entity taking damage.
-        dmg: Damage amount dealt.
+        attacker_name (str): Name of the attacking entity
+        target: The target entity taking damage (has max_hp attribute)
+        dmg (int/float): Damage amount dealt
+    
+    Side effects:
+        - Calls typewriter() to display message
+        - Emits combat_event('damage', ...) to GUI
+        - Calls _emit_enemy_panel() if target is an enemy (no streak attribute)
     """
     ratio = dmg / max(1, target.max_hp)
     if ratio >= 0.25:
@@ -101,11 +133,26 @@ def damage_line(attacker_name, target, dmg):
 
 
 def display_entity_stats(entity, role=None):
-    """Print entity stats and optionally update GUI panel.
+    """Print full entity stats to narrative log and optionally update GUI panel.
+    
+    Displays:
+    - HP bar with status (healthy/wounded/critical)
+    - Shield (if > 0)
+    - Stats: ATK, DEF, SPD, CRIT%
+    - Player-only: Streak, Longest Streak, Focus bar
+    - Player-only: Gold
+    - Status effects: name and remaining duration
+    
+    In GUI mode also updates the enemy panel with full stats for visual display.
     
     Args:
-        entity: Character or enemy to display.
-        role: Optional role label for GUI panel update.
+        entity: Player or enemy character to display
+        role (str, optional): Type label for GUI ('enemy', 'boss', 'elite'). Defaults to None.
+    
+    Side effects:
+        - Calls typewriter() for each stat line
+        - Sleeps 0.3s after displaying
+        - Calls _emit_enemy_panel() if role is provided
     """
     typewriter(f"\n--- {entity.name} ---")
     typewriter(f"HP:  {hp_bar(entity.hp, entity.max_hp)}")
@@ -130,6 +177,19 @@ def display_entity_stats(entity, role=None):
 
 
 def _view_skills(player):
+    """Display all player skills with unlock status.
+    
+    Shows:
+    - Unlocked skills: [UNLOCKED] Name (tree)
+    - Locked skills: [locked] Name (current mastery / 5 needed)
+    
+    Args:
+        player: The MainCharacter instance
+    
+    Side effects:
+        - Calls typewriter() for each skill
+        - Sleeps 0.3s after displaying
+    """
     typewriter("\n--- Your Skills ---")
     if not player.skills:
         typewriter("No skills available.")
@@ -148,9 +208,42 @@ def _view_skills(player):
 # ─────────────────────────────────────────────
 
 def _ask_question(question_data, player):
-    """
-    Present one question to the player.
-    Returns True if correct, False otherwise.
+    """Present one question to the player and collect their answer.
+    
+    Handles all 6 question types:
+    1. TF (True/False): Yes/No choice
+    2. MC (Multiple Choice): Select from options list
+    3. AR (Arithmetic): Type numeric answer
+    4. ID (Identification): Type short answer (1-2 words)
+    5. FB (Fill in the Blanks): Type phrase or word
+    6. OD (Ordering): Arrange items in correct sequence
+    
+    Features:
+    - Displays mastery level, difficulty, and question category
+    - Player skills (if active):
+      * mc_eliminate: Remove a wrong MC option
+      * hint_active: Reveal answer start/length hint
+    - Debug mode: Auto-answers all questions correctly
+    - Prevents GUI auto-play during combat questions
+    
+    Args:
+        question_data (dict): Question object with keys:
+            - 'type': Question type (TF, MC, AR, etc)
+            - 'question': Question text
+            - 'answer': Correct answer string
+            - 'options' (MC): List of choices
+            - 'items' (OD): List to order
+            - 'difficulty': 1/2/3 for easy/medium/hard
+        player: The MainCharacter instance
+        
+    Returns:
+        bool: True if answer is correct, False otherwise
+    
+    Side effects:
+        - Calls typewriter() to display question and options
+        - Calls input_handler.ask() or ask_choice() to get player input
+        - Sets input_handler.in_combat_question flag
+        - Applies player skills (hints, elimination)
     """
     # Disable auto-play during combat questions
     input_handler.set_in_combat_question(True)
@@ -277,7 +370,36 @@ def _ask_question(question_data, player):
 
 
 def _apply_correct(player, q_type, enemy, engine):
-    """Handle streak, focus, mastery, passives, and damage after a correct answer."""
+    """Handle consequences of answering a question correctly.
+    
+    Effects:
+    1. Gain mastery in the question type (1 point)
+    2. Increase streak counter
+    3. Gain focus (10 + 0.2*WIS)
+    4. Check for skill unlocks
+    5. Apply class-specific passive bonuses:
+       - bloodlust: ATK +3
+       - momentum: SPD +2
+       - fortress: DEF +2
+       - insight: +2 focus
+    6. Calculate base damage to enemy
+    7. Apply damage multipliers from streak, masteries, skills
+    8. Show narrative flavor text
+    9. Emit combat event to GUI
+    
+    Args:
+        player: The MainCharacter instance
+        q_type (str): Question type (TF, MC, AR, ID, FB, OD)
+        enemy: The enemy being fought
+        engine: The LearningEngine (for question metadata)
+    
+    Side effects:
+        - Modifies player.streak, focus, stats
+        - Calls typewriter() for feedback messages
+        - Calls narrative.show_streak_comment() if streak milestone
+        - Applies damage to enemy via enemy.take_damage()
+        - Emits combat event to GUI
+    """
     typewriter("Correct!")
 
     gain_mastery(player, q_type)

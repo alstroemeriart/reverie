@@ -1,178 +1,173 @@
 """Character progression and skill system.
 
-Manages mastery progression, skill unlocking and application, skill trees,
-mastery multipliers, and progression milestones.
+Handles mastery growth, mastery-based damage multipliers, skill definitions,
+skill unlocking, and applying skill effects during combat.
 """
 
-# ─────────────────────────────
+
+# ─────────────────────────────────────────────────────────────────────────────
 # MASTERY SYSTEM
-# ─────────────────────────────
-def gain_mastery(player, q_type, amount=1):
-    """Increase mastery for a specific question type.
-    
+# ─────────────────────────────────────────────────────────────────────────────
+
+def gain_mastery(player, q_type: str, amount: int = 1) -> None:
+    """Increase the player's mastery in a specific question type.
+
+    Does nothing if ``q_type`` is not already a key in player.mastery,
+    preventing accidental creation of unknown categories.
+
     Args:
-        player: Player character object with mastery dict.
-        q_type (str): Question type key (e.g., 'TF', 'MC', 'AR').
-        amount (int): Mastery points to gain (default: 1).
+        player: MainCharacter instance with a ``mastery`` dict attribute.
+        q_type: Question-type key, e.g. ``"TF"``, ``"MC"``, ``"AR"``.
+        amount: Mastery points to add (default 1).
     """
     if q_type not in player.mastery:
-        return
-
+        return  # Unknown question type — ignore silently
     player.mastery[q_type] += amount
 
 
-def mastery_multiplier(player, q_type):
-    """Calculate damage multiplier based on mastery level.
-    
-    Uses balanced scaling: 50 mastery = +75% damage.
-    
+def mastery_multiplier(player, q_type: str) -> float:
+    """Calculate the damage multiplier granted by mastery in a given question type.
+
+    Uses balanced linear scaling: every mastery point adds 1.5% damage.
+    At 50 mastery this yields a +75% multiplier.
+
     Args:
-        player: Player character object.
-        q_type (str): Question type to check mastery for.
-    
+        player: MainCharacter with a ``mastery`` dict.
+        q_type: Question-type key to look up.
+
     Returns:
-        float: Damage multiplier (1.0 + mastery contribution).
+        float: Multiplier ≥ 1.0 (e.g. 1.75 at 50 mastery).
     """
-    # BALANCED scaling (important)
-    # 50 mastery = +75% power (not broken)
     return 1 + (player.mastery.get(q_type, 0) * 0.015)
 
 
-# -----------------------------
+# ─────────────────────────────────────────────────────────────────────────────
 # SKILL SYSTEM
-# -----------------------------
+# ─────────────────────────────────────────────────────────────────────────────
+
 class Skill:
-    """Represents a learnable skill that modifies combat behavior.
-    
+    """A learnable combat skill tied to a specific question-type mastery tree.
+
+    Skills are created locked and become available once the player's mastery
+    in the skill's ``tree`` reaches the required threshold.
+
     Attributes:
-        name (str): Skill name displayed to player.
-        tree (str): Associated question type tree (e.g., 'TF').
-        effect (callable): Function that applies skill effect.
-        condition (callable): Function that returns True when skill is unlockable.
-        unlocked (bool): Whether skill has been unlocked yet.
+        name      (str):      Display name shown to the player.
+        tree      (str):      Associated question type (e.g. ``"TF"``).
+        effect    (callable): ``effect(player, context)`` — modifies combat context.
+        condition (callable): ``condition(player) -> bool`` — unlock check.
+        unlocked  (bool):     Whether this skill has been unlocked yet.
     """
-    def __init__(self, name, tree, effect, condition):
-        """Initialize a skill with name, tree, effect, and unlock condition.
-        
+
+    def __init__(self, name: str, tree: str, effect, condition) -> None:
+        """Create a new (locked) Skill.
+
         Args:
-            name (str): Display name of the skill.
-            tree (str): Question type this skill is associated with.
-            effect (callable): Function(player, context) to apply skill effect.
-            condition (callable): Function(player) that returns unlock status.
+            name:      Display name.
+            tree:      Question-type mastery tree this skill belongs to.
+            effect:    Callable applied during combat via apply_skills().
+            condition: Callable that returns True when the skill can be unlocked.
         """
-        self.name = name
-        self.tree = tree
-        self.effect = effect
+        self.name      = name
+        self.tree      = tree
+        self.effect    = effect
         self.condition = condition
-        self.unlocked = False
+        self.unlocked  = False   # All skills start locked
 
 
-def apply_skills(player, context):
-    """Apply all unlocked skills to current combat context.
-    
+# ── Skill effect functions ────────────────────────────────────────────────────
+
+def reflex_dodge_effect(player, context: dict) -> None:
+    """Skill: Reflex Dodge — boost dodge chance on correct TF answers.
+
+    Adds 0.10 to the player's dodge modifier when the combat context is
+    a dodge action and the answer was correct.
+
     Args:
-        player: Player character with skills list.
-        context (dict): Combat context with keys like:
-            - 'type': 'attack', 'dodge', or 'heal'
-            - 'q_type': Question type (e.g., 'TF', 'MC')
-            - 'damage': Damage value (int)
-            - 'correct': Whether answer was correct (bool)
+        player:  MainCharacter instance.
+        context: Combat context dict (expects ``type`` and ``correct`` keys).
+    """
+    if context.get("type") == "dodge" and context.get("correct"):
+        # Initialise dodge_modifier if the attribute doesn't exist yet
+        player.dodge_modifier = getattr(player, "dodge_modifier", 0) + 0.1
+
+
+def mc_eliminate_effect(player, context: dict) -> None:
+    """Skill: Eliminate One — flag to remove a wrong MC option on next question.
+
+    Sets player.mc_eliminate to 1 whenever a Multiple Choice question is
+    being processed. The question-asking code reads and resets this flag.
+
+    Args:
+        player:  MainCharacter instance.
+        context: Combat context dict (expects ``q_type`` key).
+    """
+    if context.get("q_type") == "MC":
+        player.mc_eliminate = 1
+
+
+def ar_bonus_damage(player, context: dict) -> None:
+    """Skill: Bonus Damage — +20% damage on correct Arithmetic answers.
+
+    Modifies ``context["damage"]`` in place so the caller applies the
+    boosted value automatically.
+
+    Args:
+        player:  MainCharacter instance (unused but kept for interface consistency).
+        context: Combat context dict (expects ``type``, ``q_type``, ``correct``,
+                 and ``damage`` keys).
+    """
+    if (
+        context.get("type") == "attack"
+        and context.get("q_type") == "AR"
+        and context.get("correct")
+    ):
+        context["damage"] = int(context["damage"] * 1.2)
+
+
+def id_heal_bonus(player, context: dict) -> None:
+    """Skill: Efficient Healing — +20% healing on correct Identification answers.
+
+    Modifies ``context["heal"]`` in place.
+
+    Args:
+        player:  MainCharacter instance (unused but kept for interface consistency).
+        context: Combat context dict (expects ``type``, ``q_type``, and ``heal`` keys).
+    """
+    if context.get("type") == "heal" and context.get("q_type") == "ID":
+        context["heal"] = int(context["heal"] * 1.2)
+
+
+# ── Public API ────────────────────────────────────────────────────────────────
+
+def apply_skills(player, context: dict) -> None:
+    """Run every unlocked skill's effect against the current combat context.
+
+    Called once per combat action so skills can modify damage, healing,
+    dodge chance, etc. before the result is applied.
+
+    Args:
+        player:  MainCharacter instance with a ``skills`` list.
+        context: Mutable dict describing the current action. Common keys:
+                   - ``type``    – ``"attack"``, ``"dodge"``, or ``"heal"``
+                   - ``q_type`` – Question type that triggered the action
+                   - ``damage`` – Damage amount (may be modified by skills)
+                   - ``correct``– Whether the answer was correct
     """
     for skill in player.skills:
         if skill.unlocked:
             skill.effect(player, context)
 
 
-# -----------------------------
-# SKILL DEFINITIONS
-# -----------------------------
+def unlock_skills(player) -> None:
+    """Unlock any skills whose mastery conditions are now met.
 
-def reflex_dodge_effect(player, context):
-    """Skill effect: Increase dodge chance when True/False question is answered correctly.
-    
+    Iterates the full skill list and flips ``unlocked = True`` for any
+    skill whose condition returns True and isn't already unlocked.
+    Safe to call after every mastery gain.
+
     Args:
-        player: Player character object.
-        context (dict): Combat context dict (checked for type and correct).
-    """
-    if context["type"] == "dodge" and context["correct"]:
-        player.dodge_modifier = getattr(player, "dodge_modifier", 0) + 0.1
-
-
-def mc_eliminate_effect(player, context):
-    """Skill effect: Unlock ability to eliminate one wrong answer on Multiple Choice.
-    
-    Args:
-        player: Player character object.
-        context (dict): Combat context dict (checked for q_type).
-    """
-    if context["q_type"] == "MC":
-        player.mc_eliminate = 1
-
-
-def ar_bonus_damage(player, context):
-    """Skill effect: Increase damage by 20% on correct Arrange answers.
-    
-    Args:
-        player: Player character object.
-        context (dict): Combat context dict with 'damage' key to modify.
-    """
-    if context["type"] == "attack" and context["q_type"] == "AR" and context["correct"]:
-        context["damage"] = int(context["damage"] * 1.2)
-
-
-def id_heal_bonus(player, context):
-    """Skill effect: Increase healing by 20% on correct Identify answers.
-    
-    Args:
-        player: Player character object.
-        context (dict): Combat context dict with 'heal' key to modify.
-    """
-    if context["type"] == "heal" and context["q_type"] == "ID":
-        context["heal"] = int(context["heal"] * 1.2)
-
-
-def create_skill_pool():
-    """Create a pool of all available skills.
-    
-    Returns:
-        list: List of Skill objects with unlock conditions based on mastery levels.
-    """
-    return [
-        Skill(
-            "Reflex Dodge",
-            "TF",
-            reflex_dodge_effect,
-            lambda p: p.mastery["TF"] >= 5
-        ),
-        Skill(
-            "Eliminate One",
-            "MC",
-            mc_eliminate_effect,
-            lambda p: p.mastery["MC"] >= 5
-        ),
-        Skill(
-            "Bonus Damage",
-            "AR",
-            ar_bonus_damage,
-            lambda p: p.mastery["AR"] >= 5
-        ),
-        Skill(
-            "Efficient Healing",
-            "ID",
-            id_heal_bonus,
-            lambda p: p.mastery["ID"] >= 5
-        ),
-    ]
-
-
-def unlock_skills(player):
-    """Unlock skills whose conditions have been met.
-    
-    Iterates through player's skill list and unlocks any skills whose
-    unlock condition function returns True.
-    
-    Args:
-        player: Player character object with skills list attribute.
+        player: MainCharacter instance with a ``skills`` list attribute.
     """
     if not hasattr(player, "skills"):
         return
@@ -181,3 +176,39 @@ def unlock_skills(player):
         if not skill.unlocked and skill.condition(player):
             skill.unlocked = True
 
+
+def create_skill_pool() -> list:
+    """Build and return the full list of available Skill objects.
+
+    All skills start locked; their conditions reference player.mastery
+    thresholds (≥ 5 mastery in the tree to unlock).
+
+    Returns:
+        list[Skill]: Fresh skill pool for a new run.
+    """
+    return [
+        Skill(
+            name="Reflex Dodge",
+            tree="TF",
+            effect=reflex_dodge_effect,
+            condition=lambda p: p.mastery["TF"] >= 5,
+        ),
+        Skill(
+            name="Eliminate One",
+            tree="MC",
+            effect=mc_eliminate_effect,
+            condition=lambda p: p.mastery["MC"] >= 5,
+        ),
+        Skill(
+            name="Bonus Damage",
+            tree="AR",
+            effect=ar_bonus_damage,
+            condition=lambda p: p.mastery["AR"] >= 5,
+        ),
+        Skill(
+            name="Efficient Healing",
+            tree="ID",
+            effect=id_heal_bonus,
+            condition=lambda p: p.mastery["ID"] >= 5,
+        ),
+    ]
