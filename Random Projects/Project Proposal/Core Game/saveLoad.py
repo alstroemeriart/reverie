@@ -1,7 +1,7 @@
 """Save and load game state.
 
 Serialises player and run data to JSON so a run can be resumed after
-closing the game. A completed run is archived (not deleted) so stats
+closing the game.  A completed run is archived (not deleted) so stats
 can be reviewed from the main menu.
 """
 
@@ -14,45 +14,52 @@ from ui import typewriter
 def save_game(player, run_state: dict, save_path: str = "savegame.json") -> None:
     """Serialise and write the current run to a JSON file.
 
-    Captures all player stats, inventory names (items are reconstructed
-    from their class names on load), and run progression info.
+    Captures all player stats, inventory item names (class names are used to
+    reconstruct items on load), and run progression.
 
     Args:
         player:     The MainCharacter instance to serialise.
-        run_state:  Dict with keys ``tier``, ``battles_won``, ``nodes_cleared``.
-        save_path:  File path to write the save data to.
+        run_state:  Dict with keys: ``tier``, ``battles_won``, ``nodes_cleared``.
+        save_path:  File path for the save data.
     """
     data = {
         "player": {
-            # Core stats
-            "name":           player.name,
-            "max_hp":         player.max_hp,
-            "hp":             player.hp,
-            "atk":            player.atk,
-            "defense":        player.defense,
-            "spd":            player.spd,
-            "wisdom":         player.wisdom,
-            "crit_chance":    player.crit_chance,
-            "crit_multiplier":player.crit_multiplier,
-            # Class / modifier metadata
+            # ── Core stats ──────────────────────────────────────────────────
+            "name":            player.name,
+            "max_hp":          player.max_hp,
+            "hp":              player.hp,
+            "atk":             player.atk,
+            "defense":         player.defense,
+            "spd":             player.spd,
+            "wisdom":          player.wisdom,
+            "crit_chance":     player.crit_chance,
+            "crit_multiplier": player.crit_multiplier,
+
+            # ── Class / modifier metadata ──────────────────────────────────
             "class_name":    getattr(player, "class_name",    ""),
             "class_passive": getattr(player, "class_passive", ""),
             "run_modifier":  getattr(player, "run_modifier",  ""),
             "debug_mode":    getattr(player, "debug_mode",    False),
-            # Progression
-            "lvl":            player.lvl,
-            "exp":            player.exp,
-            "xp_to_next":     player.xp_to_next,
-            "gold":           player.gold,
-            # Combat state
+
+            # ── Progression ────────────────────────────────────────────────
+            "lvl":        player.lvl,
+            "exp":        player.exp,
+            "xp_to_next": player.xp_to_next,
+            "gold":       player.gold,
+
+            # ── Combat state ───────────────────────────────────────────────
             "streak":         player.streak,
             "longest_streak": player.longest_streak,
             "focus":          player.focus,
             "max_focus":      player.max_focus,
-            # Learning
-            "mastery":        player.mastery,
-            "action_points":  player.max_action_points,
-            # Inventory stored as (name, price) pairs — class reconstructed on load
+
+            # ── Learning ───────────────────────────────────────────────────
+            "mastery":       player.mastery,
+            "action_points": player.max_action_points,
+
+            # ── Inventory stored as (name, price) pairs ────────────────────
+            # Items are reconstructed from their class name on load via
+            # the name_to_class mapping in restore_player() (main.py)
             "inventory": [
                 {"name": item.name, "price": item.price}
                 for item in player.inventory
@@ -81,11 +88,10 @@ def load_game(save_path: str = "savegame.json") -> tuple:
 
     Returns:
         tuple[dict | None, dict | None]:
-            ``(player_data, run_data)`` dicts on success,
-            ``(None, None)`` if the file is missing or corrupted.
+            (player_data, run_data) on success, (None, None) on failure.
     """
     if not os.path.exists(save_path):
-        return None, None
+        return None, None   # no save file — nothing to load
 
     try:
         with open(save_path, "r") as f:
@@ -98,18 +104,18 @@ def load_game(save_path: str = "savegame.json") -> tuple:
 
 
 def delete_save(save_path: str = "savegame.json") -> None:
-    """Archive the active save as a completed-run record, then delete it.
+    """Archive the completed run, then delete the active save file.
 
-    Instead of discarding the file, it is copied to ``*_completed.json``
-    so the player can review their last run from the main menu.
+    Instead of discarding data, the save is copied to ``*_completed.json``
+    so the player can review stats from the main menu via load_completed_run().
 
     Args:
         save_path: Path to the active save file.
     """
     if not os.path.exists(save_path):
-        return
+        return   # nothing to delete
 
-    # Derive archive path by replacing the suffix
+    # Derive archive path: e.g. "savegame.json" → "savegame_completed.json"
     archive_path = save_path.replace(".json", "_completed.json")
 
     try:
@@ -121,7 +127,7 @@ def delete_save(save_path: str = "savegame.json") -> None:
     except Exception as exc:
         typewriter(f"Archive failed: {exc}")
 
-    # Always attempt to remove the active save, even if archiving failed
+    # Always attempt removal even if archiving failed to clean up the active save
     try:
         os.remove(save_path)
     except OSError:
@@ -132,12 +138,12 @@ def load_completed_run(save_path: str = "savegame.json") -> tuple:
     """Load the archived last-completed-run data.
 
     Args:
-        save_path: Base path used when the run was saved (the ``_completed``
+        save_path: Base path used when the run was saved (``_completed``
                    suffix is appended automatically).
 
     Returns:
         tuple[dict | None, dict | None]:
-            ``(player_data, run_data)`` on success, ``(None, None)`` otherwise.
+            (player_data, run_data) on success, (None, None) otherwise.
     """
     archive_path = save_path.replace(".json", "_completed.json")
 
@@ -154,7 +160,7 @@ def load_completed_run(save_path: str = "savegame.json") -> tuple:
 
 
 def save_exists(save_path: str = "savegame.json") -> bool:
-    """Return True if an active save file exists at ``save_path``.
+    """Return True if an active save file exists at save_path.
 
     Args:
         save_path: Path to check.
